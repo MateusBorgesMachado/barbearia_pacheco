@@ -7,12 +7,16 @@ class ModalDataHora extends StatefulWidget {
   final ServiceModel? selectedService;
   final String? selectedBarberId;
   final Function(String date, String time) onSelect;
+  final String barberId;
+  final ValueChanged<String> onHorarioSelecionado;
 
   const ModalDataHora({
     super.key,
     required this.selectedService,
     required this.selectedBarberId,
     required this.onSelect,
+    required this.barberId,
+    required this.onHorarioSelecionado,
   });
 
   @override
@@ -92,7 +96,12 @@ class _ModalDataHoraState extends State<ModalDataHora> {
 
   bool _isSlotAvailable(String time, List<String> todosHorariosDoTurno) {
     if (_horariosOcupados.contains(time)) return false;
-    if (widget.selectedService == null) return false;
+
+    final bool isBarberBlocking =
+        widget.selectedService == null ||
+        widget.selectedService!.name == 'Bloqueio';
+
+    if (!isBarberBlocking && widget.selectedService == null) return false;
 
     final DateTime now = DateTime.now();
 
@@ -108,6 +117,8 @@ class _ModalDataHoraState extends State<ModalDataHora> {
         return false;
       }
     }
+
+    if (isBarberBlocking) return true;
 
     int requiredBlocks = widget.selectedService!.durationMinutes ~/ 15;
     int currentIndex = todosHorariosDoTurno.indexOf(time);
@@ -447,8 +458,16 @@ class _ModalDataHoraState extends State<ModalDataHora> {
 
               return GestureDetector(
                 onTap: isAvailable
-                    ? () => setState(() => _horarioSelecionado = horaStr)
+                    ? () {
+                        setState(() => _horarioSelecionado = horaStr);
+
+                        final String dataFormatada =
+                            "${_currentYear}-${_currentMonth.toString().padLeft(2, '0')}-${_diaSelecionado.toString().padLeft(2, '0')}";
+
+                        widget.onSelect(dataFormatada, horaStr);
+                      }
                     : null,
+
                 child: Container(
                   decoration: BoxDecoration(
                     color: isSelected

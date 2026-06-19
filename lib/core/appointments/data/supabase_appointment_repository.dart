@@ -53,4 +53,24 @@ class SupabaseAppointmentRepository implements AppointmentRepository {
       throw Exception("Erro ao cancelar o agendamento: $error");
     }
   }
+
+  Future<void> blockTimeSlot({
+    required String barberId,
+    required String date,
+    required String time,
+    required String serviceId,
+  }) async {
+    try {
+      await _supabaseClient.from('appointments').insert({
+        'barber_id': barberId,
+        'client_id': barberId,
+        'appointment_date': date,
+        'appointment_time': time,
+        'service_id': serviceId,
+        'status': 'blocked',
+      });
+    } catch (error) {
+      throw Exception("Erro ao bloquear o horário: $error");
+    }
+  }
 }

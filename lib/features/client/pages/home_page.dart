@@ -290,6 +290,10 @@ class _HomePageState extends State<HomePage> {
                                   content: ModalDataHora(
                                     selectedService: _selectedService,
                                     selectedBarberId: _selectedBarberId,
+                                    barberId: _selectedBarberId ?? "",
+                                    onHorarioSelecionado: (_) async {},
+
+                                    // -------------------------------------------------------------
                                     onSelect: (date, time) {
                                       setState(() {
                                         _selectedDate = date;
