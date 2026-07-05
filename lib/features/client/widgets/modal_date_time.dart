@@ -4,19 +4,24 @@ import 'package:barbearia_pacheco/core/models/service_model.dart';
 import 'package:barbearia_pacheco/core/models/turno_horarios_model.dart';
 
 class ModalDataHora extends StatefulWidget {
-  final ServiceModel? selectedService;
+  final List<ServiceModel> selectedServices;
   final String? selectedBarberId;
-  final Function(String date, String time) onSelect;
+  final Function(String date, String time)? onSelect;
   final String barberId;
   final ValueChanged<String> onHorarioSelecionado;
 
+  final bool isMultiSelect;
+  final Function(String, List<String>)? onMultiSelect;
+
   const ModalDataHora({
     super.key,
-    required this.selectedService,
+    required this.selectedServices,
     required this.selectedBarberId,
-    required this.onSelect,
+    this.onSelect,
     required this.barberId,
     required this.onHorarioSelecionado,
+    this.isMultiSelect = false,
+    this.onMultiSelect,
   });
 
   @override
@@ -26,11 +31,70 @@ class ModalDataHora extends StatefulWidget {
 class _ModalDataHoraState extends State<ModalDataHora> {
   final SupabaseClient _supabase = Supabase.instance.client;
 
-  final List<TurnoHorarios> turnos = [
-    TurnoHorarios(titulo: "Manhã", horaInicio: 8, horaFim: 12),
-    TurnoHorarios(titulo: "Tarde", horaInicio: 12, horaFim: 18),
-    TurnoHorarios(titulo: "Noite", horaInicio: 18, horaFim: 22),
-  ];
+  List<TurnoHorarios> get turnosDisponiveis {
+    if (_diaSelecionado == null) return [];
+
+    final data = DateTime(_currentYear, _currentMonth, _diaSelecionado!);
+    int diaDaSemana = data.weekday;
+
+    if (diaDaSemana == DateTime.sunday || diaDaSemana == DateTime.monday)
+      return [];
+
+    if (diaDaSemana == DateTime.saturday) {
+      return [
+        TurnoHorarios(
+          titulo: "Manhã",
+          horaInicio: 8,
+          minutoInicio: 30,
+          horaFim: 12,
+          minutoFim: 0,
+        ),
+        TurnoHorarios(
+          titulo: "Tarde",
+          horaInicio: 13,
+          minutoInicio: 30,
+          horaFim: 16,
+          minutoFim: 30,
+        ),
+      ];
+    }
+
+    if (diaDaSemana == DateTime.friday) {
+      return [
+        TurnoHorarios(
+          titulo: "Manhã",
+          horaInicio: 9,
+          minutoInicio: 0,
+          horaFim: 12,
+          minutoFim: 0,
+        ),
+        TurnoHorarios(
+          titulo: "Tarde/Noite",
+          horaInicio: 14,
+          minutoInicio: 0,
+          horaFim: 19,
+          minutoFim: 30,
+        ),
+      ];
+    }
+
+    return [
+      TurnoHorarios(
+        titulo: "Manhã",
+        horaInicio: 9,
+        minutoInicio: 0,
+        horaFim: 12,
+        minutoFim: 0,
+      ),
+      TurnoHorarios(
+        titulo: "Tarde/Noite",
+        horaInicio: 14,
+        minutoInicio: 0,
+        horaFim: 19,
+        minutoFim: 0,
+      ),
+    ];
+  }
 
   int _currentMonth = DateTime.now().month;
   int _currentYear = DateTime.now().year;
@@ -38,8 +102,19 @@ class _ModalDataHoraState extends State<ModalDataHora> {
   int _turnoSelecionadoIndex = 0;
   String? _horarioSelecionado;
   int? _diaSelecionado;
+  final List<String> _horariosSelecionadosMulti = [];
   bool _exibindoHorarios = false;
   bool _isLoadingOccupied = false;
+
+  int calcularDuracaoTotal() {
+    if (widget.selectedServices.isEmpty) {
+      return 30;
+    }
+
+    return widget.selectedServices.fold(0, (soma, servico) {
+      return soma + (servico.durationMinutes);
+    });
+  }
 
   List<String> _horariosOcupados = [];
 
@@ -54,19 +129,39 @@ class _ModalDataHoraState extends State<ModalDataHora> {
     try {
       final List<Map<String, dynamic>> response = await _supabase
           .from('appointments')
-          .select('appointment_time, status, services(duration_minutes)')
+          // 🌟 AQUI: Garantimos que o 'status' vem na query
+          .select(
+            'appointment_time, status, appointment_services(services(duration_minutes))',
+          )
           .eq('barber_id', widget.selectedBarberId!)
           .eq('appointment_date', date)
-          .neq('status', 'canceled');
+          .neq('status', 'canceled'); // Pega 'scheduled' e 'blocked'
 
       List<String> slots = [];
+
       for (final appointment in response) {
         final String startTime = (appointment['appointment_time'] as String)
             .substring(0, 5);
-        final serviceData = appointment['services'] as Map<String, dynamic>?;
-        final int duration = serviceData?['duration_minutes'] as int? ?? 30;
+        final String status = appointment['status'] ?? 'scheduled';
 
-        int totalBlocks = duration ~/ 15;
+        int totalDuration = 0;
+
+        // Se for um bloqueio, dura exatamente 1 bloco (15 min)
+        if (status == 'blocked') {
+          totalDuration = 15;
+        } else {
+          // Se for serviço normal, soma o tempo do combo
+          final apptServices =
+              appointment['appointment_services'] as List<dynamic>? ?? [];
+          for (var item in apptServices) {
+            final svc = item['services'] as Map<String, dynamic>?;
+            totalDuration += (svc?['duration_minutes'] as int? ?? 0);
+          }
+          // Fallback de segurança
+          if (totalDuration == 0) totalDuration = 30;
+        }
+
+        int totalBlocks = totalDuration ~/ 15;
         int startHour = int.parse(startTime.split(':')[0]);
         int startMinute = int.parse(startTime.split(':')[1]);
 
@@ -86,7 +181,8 @@ class _ModalDataHoraState extends State<ModalDataHora> {
       setState(() {
         _horariosOcupados = slots;
       });
-    } catch (_) {
+    } catch (e) {
+      debugPrint("Erro ao buscar slots ocupados: $e");
     } finally {
       setState(() {
         _isLoadingOccupied = false;
@@ -98,10 +194,10 @@ class _ModalDataHoraState extends State<ModalDataHora> {
     if (_horariosOcupados.contains(time)) return false;
 
     final bool isBarberBlocking =
-        widget.selectedService == null ||
-        widget.selectedService!.name == 'Bloqueio';
+        widget.selectedServices.isEmpty ||
+        widget.selectedServices.any((s) => s.name == 'Bloqueio');
 
-    if (!isBarberBlocking && widget.selectedService == null) return false;
+    if (!isBarberBlocking && widget.selectedServices.isEmpty) return false;
 
     final DateTime now = DateTime.now();
 
@@ -120,7 +216,12 @@ class _ModalDataHoraState extends State<ModalDataHora> {
 
     if (isBarberBlocking) return true;
 
-    int requiredBlocks = widget.selectedService!.durationMinutes ~/ 15;
+    int durationTotal = widget.selectedServices.fold(0, (soma, servico) {
+      return soma + (servico.durationMinutes);
+    });
+    if (durationTotal == 0) durationTotal = 30;
+
+    int requiredBlocks = durationTotal ~/ 15;
     int currentIndex = todosHorariosDoTurno.indexOf(time);
 
     for (int i = 0; i < requiredBlocks; i++) {
@@ -157,7 +258,7 @@ class _ModalDataHoraState extends State<ModalDataHora> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.selectedService == null) {
+    if (widget.selectedServices.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(24),
         child: const Column(
@@ -188,8 +289,16 @@ class _ModalDataHoraState extends State<ModalDataHora> {
       );
     }
 
-    final List<String> horariosDoTurno = turnos[_turnoSelecionadoIndex]
-        .gerarIntervalos();
+    final List<TurnoHorarios> turnosDoDia = turnosDisponiveis;
+
+    final int indexSeguro =
+        turnosDoDia.isNotEmpty && _turnoSelecionadoIndex < turnosDoDia.length
+        ? _turnoSelecionadoIndex
+        : 0;
+
+    final List<String> horariosDoTurno = turnosDoDia.isNotEmpty
+        ? turnosDoDia[indexSeguro].gerarIntervalos()
+        : [];
 
     return Container(
       constraints: BoxConstraints(
@@ -233,7 +342,7 @@ class _ModalDataHoraState extends State<ModalDataHora> {
                               color: Colors.white,
                             ),
                           )
-                        : _buildVisaoHorarios(horariosDoTurno)
+                        : _buildVisaoHorarios(horariosDoTurno, turnosDoDia)
                   : _buildVisaoCalendario(),
             ),
           ),
@@ -246,7 +355,7 @@ class _ModalDataHoraState extends State<ModalDataHora> {
                 onPressed: () {
                   final String dateStr =
                       "$_currentYear-${_currentMonth.toString().padLeft(2, '0')}-${_diaSelecionado!.toString().padLeft(2, '0')}";
-                  widget.onSelect(dateStr, _horarioSelecionado!);
+                  widget.onSelect!(dateStr, _horarioSelecionado!);
                   Navigator.pop(context);
                 },
                 style: ElevatedButton.styleFrom(
@@ -270,9 +379,14 @@ class _ModalDataHoraState extends State<ModalDataHora> {
 
   Widget _buildVisaoCalendario() {
     final int totalDays = _getDaysInMonth(_currentYear, _currentMonth);
+    final DateTime today = DateTime(
+      DateTime.now().year,
+      DateTime.now().month,
+      DateTime.now().day,
+    );
 
-    final DateTime now = DateTime.now();
-    final DateTime today = DateTime(now.year, now.month, now.day);
+    final DateTime firstDayOfMonth = DateTime(_currentYear, _currentMonth, 1);
+    final int offset = firstDayOfMonth.weekday - 1;
 
     return Column(
       key: const ValueKey('calendario'),
@@ -353,9 +467,14 @@ class _ModalDataHoraState extends State<ModalDataHora> {
               mainAxisSpacing: 8,
               crossAxisSpacing: 8,
             ),
-            itemCount: totalDays,
+            itemCount: totalDays + offset,
             itemBuilder: (context, index) {
-              int dia = index + 1;
+              if (index < offset) {
+                return const SizedBox.shrink();
+              }
+
+              int dia = index - offset + 1;
+
               bool isSelected = _diaSelecionado == dia;
 
               final DateTime cellDate = DateTime(
@@ -365,15 +484,18 @@ class _ModalDataHoraState extends State<ModalDataHora> {
               );
 
               final bool isPastDay = cellDate.isBefore(today);
+              final bool isClosedDay =
+                  cellDate.weekday == DateTime.sunday ||
+                  cellDate.weekday == DateTime.monday;
 
               return InkWell(
-                onTap: isPastDay
+                onTap: (isPastDay || isClosedDay)
                     ? null
                     : () {
                         setState(() {
                           _diaSelecionado = dia;
                           final dateStr =
-                              "$_currentYear-${_currentMonth.toString().padLeft(2, '0')}-${dia.toString().padLeft(2, '0')}";
+                              "${_currentYear}-${_currentMonth.toString().padLeft(2, '0')}-${dia.toString().padLeft(2, '0')}";
                           _fetchOccupiedSlots(dateStr).then((_) {
                             setState(() => _exibindoHorarios = true);
                           });
@@ -390,10 +512,12 @@ class _ModalDataHoraState extends State<ModalDataHora> {
                     style: TextStyle(
                       color: isSelected
                           ? Colors.black
-                          : isPastDay
+                          : (isPastDay || isClosedDay)
                           ? Colors.white10
                           : Colors.white70,
-                      decoration: isPastDay ? TextDecoration.lineThrough : null,
+                      decoration: (isPastDay || isClosedDay)
+                          ? TextDecoration.lineThrough
+                          : null,
                     ),
                   ),
                 ),
@@ -405,12 +529,15 @@ class _ModalDataHoraState extends State<ModalDataHora> {
     );
   }
 
-  Widget _buildVisaoHorarios(List<String> horariosDoTurno) {
+  Widget _buildVisaoHorarios(
+    List<String> horariosDoTurno,
+    List<TurnoHorarios> turnosDoDia,
+  ) {
     return Column(
       key: const ValueKey('horarios'),
       children: [
         Row(
-          children: List.generate(turnos.length, (index) {
+          children: List.generate(turnosDoDia.length, (index) {
             bool isSelected = _turnoSelecionadoIndex == index;
             return Expanded(
               child: GestureDetector(
@@ -427,7 +554,7 @@ class _ModalDataHoraState extends State<ModalDataHora> {
                     ),
                   ),
                   child: Text(
-                    turnos[index].titulo,
+                    turnosDoDia[index].titulo,
                     style: TextStyle(
                       color: isSelected ? Colors.white : Colors.white38,
                     ),
@@ -454,17 +581,27 @@ class _ModalDataHoraState extends State<ModalDataHora> {
                 horaStr,
                 horariosDoTurno.cast<String>(),
               );
-              bool isSelected = _horarioSelecionado == horaStr;
+              bool isSelected = widget.isMultiSelect
+                  ? _horariosSelecionadosMulti.contains(horaStr)
+                  : _horarioSelecionado == horaStr;
 
               return GestureDetector(
                 onTap: isAvailable
                     ? () {
-                        setState(() => _horarioSelecionado = horaStr);
-
-                        final String dataFormatada =
-                            "${_currentYear}-${_currentMonth.toString().padLeft(2, '0')}-${_diaSelecionado.toString().padLeft(2, '0')}";
-
-                        widget.onSelect(dataFormatada, horaStr);
+                        setState(() {
+                          if (widget.isMultiSelect) {
+                            if (_horariosSelecionadosMulti.contains(horaStr)) {
+                              _horariosSelecionadosMulti.remove(horaStr);
+                            } else {
+                              _horariosSelecionadosMulti.add(horaStr);
+                            }
+                          } else {
+                            _horarioSelecionado = horaStr;
+                            final String dataFormatada =
+                                "${_currentYear}-${_currentMonth.toString().padLeft(2, '0')}-${_diaSelecionado.toString().padLeft(2, '0')}";
+                            widget.onSelect?.call(dataFormatada, horaStr);
+                          }
+                        });
                       }
                     : null,
 
@@ -503,6 +640,38 @@ class _ModalDataHoraState extends State<ModalDataHora> {
             },
           ),
         ),
+        if (widget.isMultiSelect && _horariosSelecionadosMulti.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 16.0),
+            child: SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.amber,
+                  foregroundColor: Colors.black,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                onPressed: () {
+                  final String dataFormatada =
+                      "${_currentYear}-${_currentMonth.toString().padLeft(2, '0')}-${_diaSelecionado.toString().padLeft(2, '0')}";
+                  widget.onMultiSelect?.call(
+                    dataFormatada,
+                    _horariosSelecionadosMulti,
+                  );
+                },
+                child: Text(
+                  "Bloquear ${_horariosSelecionadosMulti.length} Horários",
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+            ),
+          ),
       ],
     );
   }

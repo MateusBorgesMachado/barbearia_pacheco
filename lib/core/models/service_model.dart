@@ -1,4 +1,6 @@
-class ServiceModel {
+import 'package:equatable/equatable.dart';
+
+class ServiceModel extends Equatable {
   final String? id;
   final String name;
   final int durationMinutes;
@@ -31,4 +33,7 @@ class ServiceModel {
     }
     return data;
   }
+
+  @override
+  List<Object> get props => [?id];
 }

@@ -124,7 +124,7 @@ class _ModalAddServiceState extends State<ModalAddService> {
               keyboardType: TextInputType.number,
               inputFormatters: [
                 FilteringTextInputFormatter.digitsOnly,
-                CurrencyInputFormatter(), // Injeta a máscara criada
+                CurrencyInputFormatter(),
               ],
               decoration: const InputDecoration(
                 labelText: "Preço do serviço",

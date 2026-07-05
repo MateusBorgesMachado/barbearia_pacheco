@@ -14,7 +14,8 @@ void main() async {
 
   await Supabase.initialize(
     url: 'https://cksavpwkozgguzowhpxc.supabase.co',
-    anonKey: 'sb_publishable_LB0Q1Oj3TnNe7lNSMGqRpg_Mbkcwlsa',
+    anonKey:
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNrc2F2cHdrb3pnZ3V6b3docHhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3NDEzNjksImV4cCI6MjA5NTMxNzM2OX0.oNNjYEaf3L5Khg6nCUgpCS6RT_GKM5oxonxlSLdkcJ0',
   );
   await NotificationService.init();
 
@@ -29,11 +30,17 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Barbearia Sr Pacheco',
       debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        splashFactory: NoSplash.splashFactory,
+        highlightColor: Colors.transparent,
+        splashColor: Colors.transparent,
+        primarySwatch: Colors.amber,
+      ),
 
       initialRoute: '/splash',
 
       routes: {
-        '/splash': (context) => const SplashPage(), // Rota adicionada
+        '/splash': (context) => const SplashPage(),
         '/login': (context) => const LoginPage(),
         '/register': (context) => const CadastroPage(),
         '/home': (context) => const HomePage(),

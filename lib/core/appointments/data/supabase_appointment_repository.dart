@@ -8,7 +8,28 @@ class SupabaseAppointmentRepository implements AppointmentRepository {
   @override
   Future<void> createAppointment(AppointmentModel appointment) async {
     try {
-      await _supabaseClient.from('appointments').insert(appointment.toJson());
+      final response = await _supabaseClient
+          .from('appointments')
+          .insert(appointment.toJson())
+          .select('id')
+          .single();
+
+      final String newAppointmentId = response['id'];
+
+      final List<Map<String, dynamic>> servicesToInsert = appointment.serviceIds
+          .map((serviceId) {
+            return {
+              'appointment_id': newAppointmentId,
+              'service_id': serviceId,
+            };
+          })
+          .toList();
+
+      if (servicesToInsert.isNotEmpty) {
+        await _supabaseClient
+            .from('appointment_services')
+            .insert(servicesToInsert);
+      }
     } catch (error) {
       throw Exception("Erro ao salvar o agendamento no sistema: $error");
     }
@@ -29,9 +50,12 @@ class SupabaseAppointmentRepository implements AppointmentRepository {
             status,
             client_id,
             users!appointments_client_id_fkey(name),
-            services(name, price, duration_minutes),
-            service_price:services(price) 
-          ''')
+            appointment_services (
+              services (
+                id, name, price, duration_minutes
+              )
+            )
+          ''') // 🌟 O SEGREDO ESTÁ AQUI: Navegando pelas tabelas
           .eq('barber_id', barberId)
           .eq('appointment_date', date)
           .order('appointment_time', ascending: true);
@@ -58,19 +82,43 @@ class SupabaseAppointmentRepository implements AppointmentRepository {
     required String barberId,
     required String date,
     required String time,
-    required String serviceId,
+    required List<String> serviceIds,
   }) async {
     try {
-      await _supabaseClient.from('appointments').insert({
+      final Map<String, dynamic> dadosAgendamento = {
         'barber_id': barberId,
-        'client_id': barberId,
+        'client_id':
+            barberId, // Preenchemos com o próprio ID do barbeiro por causa da regra do banco
         'appointment_date': date,
         'appointment_time': time,
-        'service_id': serviceId,
         'status': 'blocked',
-      });
+      };
+
+      // Insere direto, sem esperar dados de volta para não cair em bloqueio de leitura (RLS)
+      await _supabaseClient.from('appointments').insert(dadosAgendamento);
+
+      if (serviceIds.isEmpty) return;
+
+      // O restante do código de serviços normais fica aqui (se houver)...
     } catch (error) {
-      throw Exception("Erro ao bloquear o horário: $error");
+      throw Exception(error.toString());
     }
+  }
+
+  Future<List<Map<String, dynamic>>> fetchRelatorioPeriodo({
+    required String barberId,
+    required DateTime startDate,
+    required DateTime endDate,
+  }) async {
+    final startStr = startDate.toIso8601String();
+    final endStr = endDate.toIso8601String();
+
+    return await Supabase.instance.client
+        .from('appointments')
+        .select('*, appointment_services(services(price, name))')
+        .eq('barber_id', barberId)
+        .gte('appointment_date', startStr)
+        .lte('appointment_date', endStr)
+        .order('appointment_date', ascending: true);
   }
 }

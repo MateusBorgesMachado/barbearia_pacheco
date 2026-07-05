@@ -1,4 +1,3 @@
-import 'package:barbearia_pacheco/features/barber/widgets/barber_date_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:barbearia_pacheco/core/appointments/data/supabase_appointment_repository.dart';
@@ -24,11 +23,8 @@ class _ReportBarberState extends State<ReportBarber> {
   @override
   void initState() {
     super.initState();
-    _fetchFinancialData();
-  }
-
-  String _formatDateToQuery(DateTime date) {
-    return "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+    final agora = DateTime.now();
+    _fetchFinancialData(agora, agora);
   }
 
   String _formatDisplayMonth(DateTime date) {
@@ -49,7 +45,7 @@ class _ReportBarberState extends State<ReportBarber> {
     return "${months[date.month - 1]} de ${date.year}";
   }
 
-  Future<void> _fetchFinancialData() async {
+  Future<void> _fetchFinancialData(DateTime startDate, DateTime endDate) async {
     if (_barberId.isEmpty) return;
 
     setState(() {
@@ -60,10 +56,12 @@ class _ReportBarberState extends State<ReportBarber> {
     });
 
     try {
-      final String queryDate = _formatDateToQuery(_selectedDate);
-
       final List<Map<String, dynamic>> agendaData = await _repository
-          .fetchBarberAgenda(_barberId, queryDate);
+          .fetchRelatorioPeriodo(
+            barberId: _barberId,
+            startDate: startDate,
+            endDate: endDate,
+          );
 
       double calculatedRevenue = 0.0;
       int completedCount = 0;
@@ -74,12 +72,18 @@ class _ReportBarberState extends State<ReportBarber> {
 
         if (status == "canceled") {
           canceledCount++;
-        } else {
+        } else if (status != "blocked") {
           completedCount++;
-          final serviceData = item["services"] as Map<String, dynamic>?;
-          final double price =
-              (serviceData?["price"] as num?)?.toDouble() ?? 0.0;
-          calculatedRevenue += price;
+
+          final apptServices =
+              item["appointment_services"] as List<dynamic>? ?? [];
+
+          for (var apptSvc in apptServices) {
+            final serviceData = apptSvc["services"] as Map<String, dynamic>?;
+            if (serviceData != null && serviceData["price"] != null) {
+              calculatedRevenue += (serviceData["price"] as num).toDouble();
+            }
+          }
         }
       }
 
@@ -92,18 +96,14 @@ class _ReportBarberState extends State<ReportBarber> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              "Erro ao calcular relatórios: ${error.toString().replaceAll("Exception: ", "")}",
-            ),
+            content: Text("Erro ao carregar relatório: ${error.toString()}"),
             backgroundColor: Colors.redAccent,
           ),
         );
       }
     } finally {
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
       }
     }
   }
@@ -129,15 +129,83 @@ class _ReportBarberState extends State<ReportBarber> {
               color: Colors.white,
             ),
             onPressed: () async {
-              final DateTime? pickedDate = await BarberDatePicker.show(
+              final DateTimeRange? range = await showDateRangePicker(
                 context: context,
-                initialDate: _selectedDate,
+                firstDate: DateTime(2025),
+                lastDate: DateTime.now(),
+                initialDateRange: DateTimeRange(
+                  start: _selectedDate,
+                  end: _selectedDate,
+                ),
+                builder: (context, child) {
+                  return Theme(
+                    data: Theme.of(context).copyWith(
+                      colorScheme: const ColorScheme.dark(
+                        primary: Colors.amber,
+                        onPrimary: Colors.black,
+                        surface: Color(0xFF141414),
+                        onSurface: Colors.white,
+                      ),
+                      datePickerTheme: DatePickerThemeData(
+                        backgroundColor: const Color(0xFF141414),
+                        headerBackgroundColor: const Color(0xFF141414),
+                        headerForegroundColor: Colors.white,
+
+                        dayForegroundColor: WidgetStateProperty.resolveWith((
+                          states,
+                        ) {
+                          if (states.contains(WidgetState.selected)) {
+                            return Colors.black; // Texto no fundo ambar
+                          }
+                          return Colors.white.withOpacity(
+                            1.0,
+                          ); // FORÇA OPACIDADE 100%
+                        }),
+
+                        dayBackgroundColor: WidgetStateProperty.resolveWith((
+                          states,
+                        ) {
+                          if (states.contains(WidgetState.selected)) {
+                            return Colors.amber;
+                          }
+                          return Colors.transparent;
+                        }),
+
+                        todayForegroundColor: const WidgetStatePropertyAll(
+                          Colors.white,
+                        ),
+                        shadowColor: Colors.white,
+                        todayBackgroundColor: const WidgetStatePropertyAll(
+                          Colors.transparent,
+                        ),
+
+                        rangePickerBackgroundColor: const Color(0xFF141414),
+                        rangeSelectionBackgroundColor: Colors.amber.withOpacity(
+                          0.5,
+                        ),
+                      ),
+                    ),
+                    child: child!,
+                  );
+                },
               );
-              if (pickedDate != null) {
-                setState(() {
-                  _selectedDate = pickedDate;
-                });
-                _fetchFinancialData();
+
+              if (range != null) {
+                final int diferenca = range.end.difference(range.start).inDays;
+
+                if (diferenca > 30) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        "O período máximo para relatórios é de 30 dias.",
+                      ),
+                      backgroundColor: Colors.redAccent,
+                    ),
+                  );
+                  return;
+                }
+
+                _fetchFinancialData(range.start, range.end);
               }
             },
           ),

@@ -55,6 +55,7 @@ class _CadastroPageState extends State<CadastroPage> {
                 SnackBar(
                   content: Text(state.errorMessage),
                   backgroundColor: Colors.redAccent,
+                  behavior: SnackBarBehavior.floating,
                 ),
               );
             }
@@ -75,7 +76,11 @@ class _CadastroPageState extends State<CadastroPage> {
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
-                      colors: [],
+                      colors: [
+                        Colors.black.withOpacity(0.1),
+                        Colors.black.withOpacity(0.7),
+                        Colors.black.withOpacity(0.95),
+                      ],
                     ),
                   ),
                 ),
@@ -134,6 +139,18 @@ class _CadastroPageState extends State<CadastroPage> {
                                 label: "Email",
                                 icon: Icons.mail_outline,
                                 controller: _emailController,
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Informe seu e-mail';
+                                  }
+                                  final bool isEmailValido = RegExp(
+                                    r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+",
+                                  ).hasMatch(value);
+                                  if (!isEmailValido) {
+                                    return 'Digite um e-mail válido';
+                                  }
+                                  return null;
+                                },
                               ),
                               CustomInput(
                                 label: "Senha",

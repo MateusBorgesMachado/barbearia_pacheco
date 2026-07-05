@@ -57,6 +57,7 @@ class _LoginPageState extends State<LoginPage> {
                 SnackBar(
                   content: Text(state.errorMessage),
                   backgroundColor: Colors.redAccent,
+                  behavior: SnackBarBehavior.floating,
                 ),
               );
             }

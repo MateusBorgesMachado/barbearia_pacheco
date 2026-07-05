@@ -25,7 +25,7 @@ class _HomePageState extends State<HomePage> {
   String? _selectedBarberId;
   String? _selectedBarberName;
 
-  ServiceModel? _selectedService;
+  List<ServiceModel> _selectedService = [];
 
   String? _selectedDate; // Formato YYYY-MM-DD
   String? _selectedTime; // Formato HH:MM
@@ -83,7 +83,7 @@ class _HomePageState extends State<HomePage> {
 
   void _triggerBooking(BuildContext context) {
     if (_selectedBarberId == null ||
-        _selectedService == null ||
+        _selectedService.isEmpty ||
         _selectedDate == null ||
         _selectedTime == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -96,10 +96,14 @@ class _HomePageState extends State<HomePage> {
       return;
     }
 
+    final List<String> extractedServiceIds = _selectedService
+        .map((service) => service.id!)
+        .toList();
+
     final appointment = AppointmentModel(
       clientId: _clientId,
       barberId: _selectedBarberId!,
-      serviceId: _selectedService!.id!,
+      serviceIds: extractedServiceIds,
       appointmentDate: _selectedDate!,
       appointmentTime: _selectedTime!,
     );
@@ -125,7 +129,9 @@ class _HomePageState extends State<HomePage> {
             if (state is AppointmentCreationSuccess) {
               NotificationService.scheduleAppointmentNotification(
                 id: DateTime.now().millisecondsSinceEpoch.remainder(100000),
-                serviceName: _selectedService?.name ?? "Serviço",
+                serviceName: _selectedService.isNotEmpty
+                    ? _selectedService.map((s) => s.name).join(' + ')
+                    : "Serviço",
                 dateStr: _selectedDate!,
                 timeStr: _selectedTime!,
               );
@@ -139,7 +145,7 @@ class _HomePageState extends State<HomePage> {
               setState(() {
                 _selectedBarberId = null;
                 _selectedBarberName = null;
-                _selectedService = null;
+                _selectedService = [];
                 _selectedDate = null;
                 _selectedTime = null;
               });
@@ -261,16 +267,16 @@ class _HomePageState extends State<HomePage> {
                               const SizedBox(height: 16),
                               SelectionCard(
                                 icon: Icons.content_cut_outlined,
-                                title: _selectedService != null
-                                    ? "${_selectedService!.name} (R\$ ${_selectedService!.price.toStringAsFixed(2)})"
+                                title: _selectedService.isNotEmpty
+                                    ? "${_selectedService.map((s) => s.name).join(' + ')} (R\$ ${_selectedService.fold(0.0, (sum, item) => sum + (item.price)).toStringAsFixed(2)})"
                                     : "Selecionar serviço",
                                 onTap: () => _openPopup(
                                   context,
                                   title: "Escolha o Serviço",
                                   content: ModalService(
-                                    onSelect: (service) {
+                                    onSelect: (List<ServiceModel> services) {
                                       setState(() {
-                                        _selectedService = service;
+                                        _selectedService = services;
                                       });
                                     },
                                   ),
@@ -288,12 +294,11 @@ class _HomePageState extends State<HomePage> {
                                   context,
                                   title: "Data e Horário",
                                   content: ModalDataHora(
-                                    selectedService: _selectedService,
+                                    selectedServices: _selectedService,
                                     selectedBarberId: _selectedBarberId,
                                     barberId: _selectedBarberId ?? "",
                                     onHorarioSelecionado: (_) async {},
 
-                                    // -------------------------------------------------------------
                                     onSelect: (date, time) {
                                       setState(() {
                                         _selectedDate = date;

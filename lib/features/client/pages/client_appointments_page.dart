@@ -98,9 +98,19 @@ class _ClientAppointmentsPageState extends State<ClientAppointmentsPage> {
           : FutureBuilder<List<Map<String, dynamic>>>(
               future: _supabase
                   .from('appointments')
-                  .select(
-                    'id, barber_id, appointment_date, appointment_time, status, services(name, price, duration_minutes)',
-                  )
+                  .select('''
+                    id,
+                    client_id,
+                    barber_id,
+                    appointment_date,
+                    appointment_time,
+                    status,
+                    appointment_services (
+                      services (
+                        id, name, price, duration_minutes
+                      )
+                    )
+                  ''')
                   .eq('client_id', clientId)
                   .gte('appointment_date', todayStr)
                   .order('appointment_date', ascending: true),
@@ -156,7 +166,28 @@ class _ClientAppointmentsPageState extends State<ClientAppointmentsPage> {
                   itemCount: listFutureAppointments.length,
                   itemBuilder: (context, index) {
                     final item = listFutureAppointments[index];
-                    final service = item['services'] as Map<String, dynamic>?;
+
+                    final appointmentServices =
+                        item['appointment_services'] as List<dynamic>? ?? [];
+
+                    String combinedNames = "Serviço";
+                    double totalPrice = 0.0;
+
+                    if (appointmentServices.isNotEmpty) {
+                      final nomes = <String>[];
+                      for (var apptService in appointmentServices) {
+                        final s =
+                            apptService['services'] as Map<String, dynamic>?;
+                        if (s != null) {
+                          if (s['name'] != null) nomes.add(s['name']);
+                          if (s['price'] != null)
+                            totalPrice += (s['price'] as num).toDouble();
+                        }
+                      }
+                      if (nomes.isNotEmpty) {
+                        combinedNames = nomes.join(' + ');
+                      }
+                    }
 
                     final String appointmentId = item['id'] as String;
                     final String rawDate = item['appointment_date'] as String;
@@ -195,7 +226,7 @@ class _ClientAppointmentsPageState extends State<ClientAppointmentsPage> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  service?['name'] ?? "Serviço",
+                                  combinedNames,
                                   style: TextStyle(
                                     color: isCanceled
                                         ? Colors.white38
@@ -224,7 +255,7 @@ class _ClientAppointmentsPageState extends State<ClientAppointmentsPage> {
                                 Text(
                                   isCanceled
                                       ? "Cancelado"
-                                      : "Valor: R\$ ${(service?['price'] as num?)?.toStringAsFixed(2)}",
+                                      : "Valor: R\$ ${totalPrice.toStringAsFixed(2)}",
                                   style: TextStyle(
                                     color: isCanceled
                                         ? Colors.redAccent.withOpacity(0.6)

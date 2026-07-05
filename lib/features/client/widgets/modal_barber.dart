@@ -15,6 +15,7 @@ class ModalBarbeiro extends StatelessWidget {
           .from('users')
           .select('id, name')
           .eq('role', 'barber')
+          .eq('is_active', true)
           .order('name', ascending: true),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {

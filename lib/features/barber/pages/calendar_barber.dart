@@ -16,11 +16,37 @@ class CalendarBarber extends StatefulWidget {
 }
 
 class _CalendarBarberState extends State<CalendarBarber> {
+  bool _isActive = true;
+  bool _isLoading = false;
   DateTime _selectedDate = DateTime.now();
   final String _barberId = Supabase.instance.client.auth.currentUser?.id ?? "";
-  final _appointmentRepository = SupabaseAppointmentRepository();
 
-  void _abrirModalBloqueio(
+  Future<void> _toggleStatus() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final newStatus = !_isActive;
+      await Supabase.instance.client
+          .from('users')
+          .update({'is_active': newStatus})
+          .eq('id', _barberId);
+
+      setState(() {
+        _isActive = newStatus;
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Erro ao atualizar status"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  void _openBlockModal(
     BuildContext contextWithCubit,
     String dataSelecionadaStr,
   ) {
@@ -32,35 +58,47 @@ class _CalendarBarberState extends State<CalendarBarber> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (modalContext) => ModalDataHora(
-        selectedService: ServiceModel(
-          id: '',
-          name: 'Bloqueio',
-          durationMinutes: 15,
-          price: 0.0,
-        ),
+        selectedServices: [
+          ServiceModel(
+            id: '',
+            name: 'Bloqueio',
+            durationMinutes: 15,
+            price: 0.0,
+          ),
+        ],
         selectedBarberId: _barberId,
         barberId: _barberId,
-        onSelect: (dataEscolhida, horaEscohida) async {
-          Navigator.pop(modalContext);
-          await _bloquearHorario(contextWithCubit, horaEscohida);
-        },
+
         onHorarioSelecionado: (_) async {},
+
+        isMultiSelect: true,
+        onMultiSelect: (selectDate, listaHoras) async {
+          Navigator.pop(modalContext);
+          await _bloquearHorario(contextWithCubit, selectDate, listaHoras);
+        },
       ),
     );
   }
 
   Future<void> _bloquearHorario(
     BuildContext contextWithCubit,
-    String horaStr,
+    String dataEscolhidaStr,
+    List<String> horasStr,
   ) async {
-    final String dateStr =
-        "${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}";
+    if (horasStr.isEmpty) return;
 
-    final String barberId = _barberId;
+    final String dateStr = dataEscolhidaStr;
+
+    // 🌟 3. Convertemos para DateTime apenas para atualizar o calendário da tela depois
+    final DateTime dataEscolhida = DateTime.parse(dataEscolhidaStr);
+
+    final String textoDialog = horasStr.length == 1
+        ? "Deseja indisponibilizar o horário das ${horasStr.first} para os clientes?"
+        : "Deseja indisponibilizar os ${horasStr.length} horários selecionados?";
 
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         backgroundColor: const Color(0xFF141414),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         title: const Text(
@@ -68,19 +106,19 @@ class _CalendarBarberState extends State<CalendarBarber> {
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         content: Text(
-          "Deseja indisponibilizar o horário das $horaStr para os clientes?",
+          textoDialog,
           style: const TextStyle(color: Colors.white70),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop(dialogContext, false),
             child: const Text(
               "Voltar",
               style: TextStyle(color: Colors.white38),
             ),
           ),
           TextButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop(dialogContext, true),
             child: const Text(
               "Bloquear",
               style: TextStyle(
@@ -93,50 +131,60 @@ class _CalendarBarberState extends State<CalendarBarber> {
       ),
     );
 
-    if (confirm == true) {
-      try {
-        final servicos = await Supabase.instance.client
-            .from('services')
-            .select('id')
-            .limit(1);
-        if (servicos.isEmpty) {
-          throw Exception("Cadastre pelo menos um serviço antes de bloquear.");
-        }
-        final String serviceIdDefault = servicos[0]['id'] as String;
+    if (confirm != true) return;
 
-        final repository = SupabaseAppointmentRepository();
+    // 🌟 Avisa que está salvando SEM usar pop-up para não dar erro no Navigator
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Salvando bloqueio... aguarde."),
+        backgroundColor: Colors.amber,
+        duration: Duration(seconds: 2),
+      ),
+    );
+
+    try {
+      final repository = SupabaseAppointmentRepository();
+
+      // 🌟 Salva os horários um por um
+      for (String hora in horasStr) {
         await repository.blockTimeSlot(
-          barberId: barberId,
+          barberId: _barberId,
           date: dateStr,
-          time: horaStr.length == 5 ? "$horaStr:00" : horaStr,
-          serviceId: serviceIdDefault,
+          time: hora.length == 5 ? "$hora:00" : hora,
+          serviceIds: [],
         );
-
-        if (mounted) {
-          contextWithCubit.read<AppointmentCubit>().fetchBarberAgenda(
-            barberId: barberId,
-            date: _formatDate(_selectedDate),
-          );
-        }
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text("Horário bloqueado com sucesso!"),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text("Erro ao bloquear: $e"),
-              backgroundColor: Colors.redAccent,
-            ),
-          );
-        }
       }
+
+      if (!mounted) return;
+
+      // Pula para a data escolhida no calendário visual
+      setState(() {
+        _selectedDate = dataEscolhida;
+      });
+
+      // Pede pro Cubit recarregar o dia
+      contextWithCubit.read<AppointmentCubit>().fetchBarberAgenda(
+        barberId: _barberId,
+        date: dateStr,
+      );
+
+      // Sucesso!
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("${horasStr.length} horários bloqueados com sucesso!"),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      // 🌟 Se der erro, a barra vermelha vai ficar 8 segundos na tela para você conseguir ler!
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Erro ao salvar: $e"),
+          backgroundColor: Colors.redAccent,
+          duration: const Duration(seconds: 8),
+        ),
+      );
     }
   }
 
@@ -163,24 +211,71 @@ class _CalendarBarberState extends State<CalendarBarber> {
             backgroundColor: const Color(0xFF0D0D0D),
             appBar: AppBar(
               backgroundColor: const Color(0xFF141414),
-              automaticallyImplyLeading: false,
-              title: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    "Minha Agenda",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    _formatDisplayDate(_selectedDate),
-                    style: const TextStyle(color: Colors.white54, fontSize: 12),
-                  ),
-                ],
-              ),
               elevation: 0,
+              automaticallyImplyLeading: false,
+              title: const Text(
+                "Minha Agenda",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              bottom: PreferredSize(
+                preferredSize: const Size.fromHeight(50.0),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      InkWell(
+                        onTap: _toggleStatus,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _isActive
+                                ? Colors.green.withOpacity(0.2)
+                                : Colors.red.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: _isActive ? Colors.green : Colors.red,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.circle,
+                                size: 10,
+                                color: _isActive ? Colors.green : Colors.red,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                _isActive ? "Ativo" : "Inativo",
+                                style: TextStyle(
+                                  color: _isActive ? Colors.green : Colors.red,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      // Data
+                      Text(
+                        _formatDisplayDate(_selectedDate),
+                        style: const TextStyle(
+                          color: Colors.white54,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
               actions: [
                 Builder(
                   builder: (context) {
@@ -198,6 +293,7 @@ class _CalendarBarberState extends State<CalendarBarber> {
                           setState(() {
                             _selectedDate = picked;
                           });
+                          // O contexto do Builder é essencial aqui
                           if (context.mounted) {
                             context.read<AppointmentCubit>().fetchBarberAgenda(
                               barberId: _barberId,
@@ -209,12 +305,15 @@ class _CalendarBarberState extends State<CalendarBarber> {
                     );
                   },
                 ),
+
+                // 2. Ícone de Usuário (Perfil)
                 IconButton(
                   icon: const Icon(
                     Icons.account_circle_outlined,
                     color: Colors.white,
                   ),
                   onPressed: () {
+                    // Aqui você coloca a navegação para o Perfil do Barbeiro
                     Navigator.pushNamed(context, '/profile');
                   },
                 ),
@@ -266,26 +365,39 @@ class _CalendarBarberState extends State<CalendarBarber> {
                       final bool isBlocked = status == "blocked";
 
                       final clientData = item["users"] as Map<String, dynamic>?;
-                      final serviceData =
-                          item["services"] as Map<String, dynamic>?;
 
                       final String clientName =
                           clientData?["name"] ?? "Cliente Desconhecido";
-                      final String serviceName =
-                          serviceData?["name"] ?? "Serviço Geral";
-                      final int duration =
-                          serviceData?["duration_minutes"] ?? 0;
-                      final double price =
-                          (serviceData?["price"] as num?)?.toDouble() ?? 0.0;
+                      final appointmentServices =
+                          item['appointment_services'] as List<dynamic>? ?? [];
+
+                      double totalPrice = 0.0;
+                      int totalDuration = 0;
+                      String combinedNames = "Serviço Geral";
+
+                      if (appointmentServices.isNotEmpty) {
+                        final nomes = <String>[];
+                        for (var apptService in appointmentServices) {
+                          final s =
+                              apptService['services'] as Map<String, dynamic>?;
+                          if (s != null) {
+                            if (s['name'] != null) nomes.add(s['name']);
+                            if (s['price'] != null)
+                              totalPrice += (s['price'] as num).toDouble();
+                            if (s['duration_minutes'] != null)
+                              totalDuration += (s['duration_minutes'] as num)
+                                  .toInt();
+                          }
+                        }
+                        if (nomes.isNotEmpty) combinedNames = nomes.join(' + ');
+                      }
 
                       if (isBlocked) {
                         return Container(
                           margin: const EdgeInsets.only(bottom: 12.0),
                           padding: const EdgeInsets.all(16.0),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(
-                              0.02,
-                            ), // Mais discreto
+                            color: Colors.white.withOpacity(0.02),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
                               color: Colors.amber.withOpacity(0.1),
@@ -383,7 +495,7 @@ class _CalendarBarberState extends State<CalendarBarber> {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Text(
-                                    "$serviceName - $clientName",
+                                    "$combinedNames - $clientName",
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
@@ -404,7 +516,7 @@ class _CalendarBarberState extends State<CalendarBarber> {
                                   Text(
                                     isCanceled
                                         ? "Cancelado"
-                                        : "Duração: $duration min • R\$ ${price.toStringAsFixed(2)}",
+                                        : "Duração: $totalDuration min • R\$ ${totalPrice.toStringAsFixed(2)}",
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
@@ -464,7 +576,7 @@ class _CalendarBarberState extends State<CalendarBarber> {
                 ),
               ),
               onPressed: () {
-                _abrirModalBloqueio(contextInterno, formattedQueryDate);
+                _openBlockModal(contextInterno, formattedQueryDate);
               },
             ),
           );

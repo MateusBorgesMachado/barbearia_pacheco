@@ -1,18 +1,40 @@
+import 'package:barbearia_pacheco/core/services/data/supabase_service_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:barbearia_pacheco/core/models/service_model.dart';
-import 'package:barbearia_pacheco/core/services/data/supabase_service_repository.dart';
 
-class ModalService extends StatelessWidget {
-  final Function(ServiceModel service) onSelect;
+class ModalService extends StatefulWidget {
+  final Function(List<ServiceModel>) onSelect;
 
   const ModalService({super.key, required this.onSelect});
 
   @override
+  State<ModalService> createState() => _ModalServiceState();
+}
+
+class _ModalServiceState extends State<ModalService> {
+  late Future<List<ServiceModel>> _servicesFuture;
+  final List<ServiceModel> _servicosSelecionadosTemporarios = [];
+  final repository = SupabaseServiceRepository();
+
+  @override
+  void initState() {
+    super.initState();
+    _servicesFuture = repository.fetchServices();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final repository = SupabaseServiceRepository();
+    final int duracaoTotal = _servicosSelecionadosTemporarios.fold(
+      0,
+      (soma, item) => soma + item.durationMinutes,
+    );
+    final double precoTotal = _servicosSelecionadosTemporarios.fold(
+      0,
+      (soma, item) => soma + item.price,
+    );
 
     return FutureBuilder<List<ServiceModel>>(
-      future: repository.fetchServices(),
+      future: _servicesFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(
@@ -39,24 +61,76 @@ class ModalService extends StatelessWidget {
 
         return Column(
           mainAxisSize: MainAxisSize.min,
-          children: services.map((service) {
-            return ListTile(
-              leading: const Icon(Icons.content_cut, color: Colors.white70),
-              title: Text(
-                service.name,
-                style: const TextStyle(color: Colors.white),
+          children: [
+            ...services.map((service) {
+              final bool isSelected = _servicosSelecionadosTemporarios.any(
+                (s) => s.id == service.id,
+              );
+
+              return Theme(
+                data: Theme.of(context).copyWith(
+                  unselectedWidgetColor: Colors.white54,
+                  splashColor: Colors.transparent,
+                  highlightColor: Colors.transparent,
+                ),
+                child: CheckboxListTile(
+                  activeColor: Colors.amber,
+                  checkColor: Colors.black,
+                  secondary: const Icon(
+                    Icons.content_cut,
+                    color: Colors.white70,
+                  ),
+                  title: Text(
+                    service.name,
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                  subtitle: Text(
+                    "${service.durationMinutes} min • R\$ ${service.price.toStringAsFixed(2)}",
+                    style: const TextStyle(color: Colors.white54),
+                  ),
+                  value: isSelected,
+                  onChanged: (bool? checked) {
+                    setState(() {
+                      if (checked == true) {
+                        _servicosSelecionadosTemporarios.add(service);
+                      } else {
+                        _servicosSelecionadosTemporarios.remove(service);
+                      }
+                    });
+                  },
+                ),
+              );
+            }),
+
+            if (_servicosSelecionadosTemporarios.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.amber,
+                      foregroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    onPressed: () {
+                      widget.onSelect(_servicosSelecionadosTemporarios);
+                      Navigator.pop(context);
+                    },
+                    child: Text(
+                      "Confirmar ($duracaoTotal min - R\$ ${precoTotal.toStringAsFixed(2)})",
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                ),
               ),
-              subtitle: Text(
-                "${service.durationMinutes} min • R\$ ${service.price.toStringAsFixed(2)}",
-                style: const TextStyle(color: Colors.white54),
-              ),
-              trailing: const Icon(Icons.chevron_right, color: Colors.white30),
-              onTap: () {
-                onSelect(service);
-                Navigator.pop(context);
-              },
-            );
-          }).toList(),
+          ],
         );
       },
     );
