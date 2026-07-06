@@ -89,7 +89,6 @@ class _CalendarBarberState extends State<CalendarBarber> {
 
     final String dateStr = dataEscolhidaStr;
 
-    // 🌟 3. Convertemos para DateTime apenas para atualizar o calendário da tela depois
     final DateTime dataEscolhida = DateTime.parse(dataEscolhidaStr);
 
     final String textoDialog = horasStr.length == 1
@@ -133,7 +132,6 @@ class _CalendarBarberState extends State<CalendarBarber> {
 
     if (confirm != true) return;
 
-    // 🌟 Avisa que está salvando SEM usar pop-up para não dar erro no Navigator
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text("Salvando bloqueio... aguarde."),
@@ -145,7 +143,6 @@ class _CalendarBarberState extends State<CalendarBarber> {
     try {
       final repository = SupabaseAppointmentRepository();
 
-      // 🌟 Salva os horários um por um
       for (String hora in horasStr) {
         await repository.blockTimeSlot(
           barberId: _barberId,
@@ -157,18 +154,15 @@ class _CalendarBarberState extends State<CalendarBarber> {
 
       if (!mounted) return;
 
-      // Pula para a data escolhida no calendário visual
       setState(() {
         _selectedDate = dataEscolhida;
       });
 
-      // Pede pro Cubit recarregar o dia
       contextWithCubit.read<AppointmentCubit>().fetchBarberAgenda(
         barberId: _barberId,
         date: dateStr,
       );
 
-      // Sucesso!
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("${horasStr.length} horários bloqueados com sucesso!"),
@@ -177,7 +171,6 @@ class _CalendarBarberState extends State<CalendarBarber> {
       );
     } catch (e) {
       if (!mounted) return;
-      // 🌟 Se der erro, a barra vermelha vai ficar 8 segundos na tela para você conseguir ler!
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("Erro ao salvar: $e"),
@@ -264,7 +257,6 @@ class _CalendarBarberState extends State<CalendarBarber> {
                           ),
                         ),
                       ),
-                      // Data
                       Text(
                         _formatDisplayDate(_selectedDate),
                         style: const TextStyle(
@@ -293,7 +285,6 @@ class _CalendarBarberState extends State<CalendarBarber> {
                           setState(() {
                             _selectedDate = picked;
                           });
-                          // O contexto do Builder é essencial aqui
                           if (context.mounted) {
                             context.read<AppointmentCubit>().fetchBarberAgenda(
                               barberId: _barberId,
@@ -306,14 +297,12 @@ class _CalendarBarberState extends State<CalendarBarber> {
                   },
                 ),
 
-                // 2. Ícone de Usuário (Perfil)
                 IconButton(
                   icon: const Icon(
                     Icons.account_circle_outlined,
                     color: Colors.white,
                   ),
                   onPressed: () {
-                    // Aqui você coloca a navegação para o Perfil do Barbeiro
                     Navigator.pushNamed(context, '/profile');
                   },
                 ),

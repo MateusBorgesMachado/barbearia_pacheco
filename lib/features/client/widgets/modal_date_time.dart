@@ -129,13 +129,12 @@ class _ModalDataHoraState extends State<ModalDataHora> {
     try {
       final List<Map<String, dynamic>> response = await _supabase
           .from('appointments')
-          // 🌟 AQUI: Garantimos que o 'status' vem na query
           .select(
             'appointment_time, status, appointment_services(services(duration_minutes))',
           )
           .eq('barber_id', widget.selectedBarberId!)
           .eq('appointment_date', date)
-          .neq('status', 'canceled'); // Pega 'scheduled' e 'blocked'
+          .neq('status', 'canceled');
 
       List<String> slots = [];
 
@@ -146,18 +145,15 @@ class _ModalDataHoraState extends State<ModalDataHora> {
 
         int totalDuration = 0;
 
-        // Se for um bloqueio, dura exatamente 1 bloco (15 min)
         if (status == 'blocked') {
           totalDuration = 15;
         } else {
-          // Se for serviço normal, soma o tempo do combo
           final apptServices =
               appointment['appointment_services'] as List<dynamic>? ?? [];
           for (var item in apptServices) {
             final svc = item['services'] as Map<String, dynamic>?;
             totalDuration += (svc?['duration_minutes'] as int? ?? 0);
           }
-          // Fallback de segurança
           if (totalDuration == 0) totalDuration = 30;
         }
 

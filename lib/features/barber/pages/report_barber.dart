@@ -155,11 +155,9 @@ class _ReportBarberState extends State<ReportBarber> {
                           states,
                         ) {
                           if (states.contains(WidgetState.selected)) {
-                            return Colors.black; // Texto no fundo ambar
+                            return Colors.black;
                           }
-                          return Colors.white.withOpacity(
-                            1.0,
-                          ); // FORÇA OPACIDADE 100%
+                          return Colors.white.withOpacity(0.1);
                         }),
 
                         dayBackgroundColor: WidgetStateProperty.resolveWith((

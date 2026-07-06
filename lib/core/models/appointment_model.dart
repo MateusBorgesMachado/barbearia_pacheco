@@ -23,7 +23,7 @@ class AppointmentModel {
 
   factory AppointmentModel.fromJson(Map<String, dynamic> json) {
     List<String> parsedServiceIds = [];
-    List<ServiceModel> parsedServices = []; // 🌟 Lista para os dados completos
+    List<ServiceModel> parsedServices = [];
 
     if (json['appointment_services'] != null) {
       final apptServices = json['appointment_services'] as List<dynamic>;
@@ -50,7 +50,7 @@ class AppointmentModel {
       clientId: json['client_id'] as String,
       barberId: json['barber_id'] as String,
       serviceIds: parsedServiceIds,
-      services: parsedServices, // 🌟 Passa a lista populada para o model
+      services: parsedServices,
       appointmentDate: json['appointment_date'] as String,
       appointmentTime: json['appointment_time'] as String,
       status: json['status'] as String,

@@ -55,7 +55,7 @@ class SupabaseAppointmentRepository implements AppointmentRepository {
                 id, name, price, duration_minutes
               )
             )
-          ''') // 🌟 O SEGREDO ESTÁ AQUI: Navegando pelas tabelas
+          ''')
           .eq('barber_id', barberId)
           .eq('appointment_date', date)
           .order('appointment_time', ascending: true);
@@ -87,19 +87,15 @@ class SupabaseAppointmentRepository implements AppointmentRepository {
     try {
       final Map<String, dynamic> dadosAgendamento = {
         'barber_id': barberId,
-        'client_id':
-            barberId, // Preenchemos com o próprio ID do barbeiro por causa da regra do banco
+        'client_id': barberId,
         'appointment_date': date,
         'appointment_time': time,
         'status': 'blocked',
       };
 
-      // Insere direto, sem esperar dados de volta para não cair em bloqueio de leitura (RLS)
       await _supabaseClient.from('appointments').insert(dadosAgendamento);
 
       if (serviceIds.isEmpty) return;
-
-      // O restante do código de serviços normais fica aqui (se houver)...
     } catch (error) {
       throw Exception(error.toString());
     }
