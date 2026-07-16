@@ -82,6 +82,22 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _triggerBooking(BuildContext context) {
+    final currentUser = Supabase.instance.client.auth.currentUser;
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            "Faça login ou cadastre-se para concluir seu agendamento!",
+          ),
+          backgroundColor: Colors.amber,
+          duration: Duration(seconds: 3),
+        ),
+      );
+
+      Navigator.pushNamed(context, '/login');
+      return;
+    }
+
     if (_selectedBarberId == null ||
         _selectedService.isEmpty ||
         _selectedDate == null ||
@@ -159,6 +175,8 @@ class _HomePageState extends State<HomePage> {
             }
           },
           builder: (context, state) {
+            final bool isLogado =
+                Supabase.instance.client.auth.currentUser != null;
             return Stack(
               children: [
                 Positioned(
@@ -322,9 +340,9 @@ class _HomePageState extends State<HomePage> {
                                         onPressed: () =>
                                             _triggerBooking(context),
                                         style: ElevatedButton.styleFrom(
-                                          backgroundColor: const Color(
-                                            0xFFC5C9D0,
-                                          ),
+                                          backgroundColor: isLogado
+                                              ? const Color(0xFFC5C9D0)
+                                              : Colors.amber,
                                           foregroundColor: Colors.black,
                                           shape: RoundedRectangleBorder(
                                             borderRadius: BorderRadius.circular(
@@ -334,7 +352,9 @@ class _HomePageState extends State<HomePage> {
                                           elevation: 0,
                                         ),
                                         child: Text(
-                                          "Agendar",
+                                          isLogado
+                                              ? "Agendar"
+                                              : "Entrar para Agendar",
                                           style: TextStyle(
                                             fontSize: (18.0 / textScale).clamp(
                                               16.0,

@@ -37,7 +37,7 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.amber,
       ),
 
-      initialRoute: '/splash',
+      initialRoute: '/home',
 
       routes: {
         '/splash': (context) => const SplashPage(),

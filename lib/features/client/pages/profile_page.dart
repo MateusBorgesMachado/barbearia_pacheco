@@ -1,5 +1,6 @@
 import 'package:barbearia_pacheco/features/auth/data/supabase_auth_repository.dart';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../widgets/modal_edit_name.dart';
 import 'package:barbearia_pacheco/core/models/user_model.dart';
 
@@ -36,6 +37,85 @@ class _ProfilePageState extends State<ProfilePage> {
       setState(() {
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _excluirConta(BuildContext context) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: const Color(0xFF141414),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        title: const Text(
+          "Excluir Conta",
+          style: TextStyle(
+            color: Colors.redAccent,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: const Text(
+          "Tem certeza que deseja apagar sua conta? Todos os seus dados pessoais e histórico de agendamentos serão excluídos permanentemente. Esta ação não pode ser desfeita.",
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text(
+              "Cancelar",
+              style: TextStyle(color: Colors.white38),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text(
+              "SIM, EXCLUIR MINHA CONTA",
+              style: TextStyle(
+                color: Colors.redAccent,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (c) => const Center(
+          child: CircularProgressIndicator(color: Colors.redAccent),
+        ),
+      );
+
+      try {
+        await Supabase.instance.client.rpc('delete_user_account');
+
+        await Supabase.instance.client.auth.signOut();
+
+        if (mounted) {
+          Navigator.pop(context);
+
+          Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Sua conta e dados foram excluídos com sucesso."),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Erro ao excluir conta: $e"),
+              backgroundColor: Colors.redAccent,
+            ),
+          );
+        }
+      }
     }
   }
 
@@ -147,13 +227,25 @@ class _ProfilePageState extends State<ProfilePage> {
             _buildProfileItem(
               icon: Icons.logout,
               title: "Sair da conta",
-              onTap: () {
-                Navigator.pushNamedAndRemoveUntil(
-                  context,
-                  '/login',
-                  (route) => false,
-                );
+              onTap: () async {
+                // 🌟 DICA: Lembre-se de deslogar no Supabase antes de mudar a rota!
+                await Supabase.instance.client.auth.signOut();
+                if (context.mounted) {
+                  Navigator.pushNamedAndRemoveUntil(
+                    context,
+                    '/home', // 🌟 Mudamos de '/login' para '/home' por causa do Modo Convidado
+                    (route) => false,
+                  );
+                }
               },
+              textScale: textScale,
+              isDanger: true,
+            ),
+            const SizedBox(height: 12),
+            _buildProfileItem(
+              icon: Icons.delete_forever_outlined,
+              title: "Excluir minha conta",
+              onTap: () => _excluirConta(context),
               textScale: textScale,
               isDanger: true,
             ),
@@ -162,40 +254,37 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
     );
   }
+}
 
-  Widget _buildProfileItem({
-    required IconData icon,
-    required String title,
-    required VoidCallback onTap,
-    required double textScale,
-    bool isDanger = false,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFF141414),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white10),
-      ),
-      child: ListTile(
-        onTap: onTap,
-        leading: Icon(
-          icon,
-          color: isDanger ? Colors.redAccent : Colors.white70,
-        ),
-        title: Text(
-          title,
-          style: TextStyle(
-            color: isDanger ? Colors.redAccent : Colors.white,
-            fontWeight: FontWeight.w500,
-            fontSize: (16.0 / textScale).clamp(14.0, 18.0),
-          ),
-        ),
-        trailing: Icon(
-          Icons.chevron_right,
-          color: isDanger ? Colors.redAccent.withOpacity(0.4) : Colors.white30,
-          size: 20,
+Widget _buildProfileItem({
+  required IconData icon,
+  required String title,
+  required VoidCallback onTap,
+  required double textScale,
+  bool isDanger = false,
+}) {
+  return Container(
+    decoration: BoxDecoration(
+      color: const Color(0xFF141414),
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: Colors.white10),
+    ),
+    child: ListTile(
+      onTap: onTap,
+      leading: Icon(icon, color: isDanger ? Colors.redAccent : Colors.white70),
+      title: Text(
+        title,
+        style: TextStyle(
+          color: isDanger ? Colors.redAccent : Colors.white,
+          fontWeight: FontWeight.w500,
+          fontSize: (16.0 / textScale).clamp(14.0, 18.0),
         ),
       ),
-    );
-  }
+      trailing: Icon(
+        Icons.chevron_right,
+        color: isDanger ? Colors.redAccent.withOpacity(0.4) : Colors.white30,
+        size: 20,
+      ),
+    ),
+  );
 }
