@@ -68,13 +68,15 @@ class _CalendarBarberState extends State<CalendarBarber> {
         ],
         selectedBarberId: _barberId,
         barberId: _barberId,
-
         onHorarioSelecionado: (_) async {},
-
         isMultiSelect: true,
         onMultiSelect: (selectDate, listaHoras) async {
           Navigator.pop(modalContext);
           await _bloquearHorario(contextWithCubit, selectDate, listaHoras);
+        },
+        onBloquearDiaTodo: (selectDate) async {
+          Navigator.pop(modalContext);
+          await _bloquearDiaTodo(contextWithCubit, selectDate);
         },
       ),
     );
@@ -177,6 +179,143 @@ class _CalendarBarberState extends State<CalendarBarber> {
           backgroundColor: Colors.redAccent,
           duration: const Duration(seconds: 8),
         ),
+      );
+    }
+  }
+
+  List<String> _gerarHorariosPorData(String dataStr) {
+    try {
+      final DateTime data = DateTime.parse(dataStr);
+      final int diaDaSemana = data.weekday;
+
+      if (diaDaSemana == DateTime.sunday || diaDaSemana == DateTime.monday) {
+        return [];
+      }
+
+      int hIn1 = 9, mIn1 = 0, hFim1 = 12, mFim1 = 0;
+      int hIn2 = 14, mIn2 = 0, hFim2 = 19, mFim2 = 0;
+
+      if (diaDaSemana == DateTime.saturday) {
+        hIn1 = 8;
+        mIn1 = 30;
+        hFim1 = 12;
+        mFim1 = 0;
+        hIn2 = 13;
+        mIn2 = 30;
+        hFim2 = 16;
+        mFim2 = 30;
+      } else if (diaDaSemana == DateTime.friday) {
+        hFim2 = 19;
+        mFim2 = 30;
+      }
+
+      final List<String> horarios = [];
+
+      void adicionarTurno(int horaIn, int minIn, int horaFim, int minFim) {
+        DateTime atual = DateTime(
+          data.year,
+          data.month,
+          data.day,
+          horaIn,
+          minIn,
+        );
+        final DateTime fim = DateTime(
+          data.year,
+          data.month,
+          data.day,
+          horaFim,
+          minFim,
+        );
+
+        while (!atual.isAfter(fim)) {
+          final String formatado =
+              "${atual.hour.toString().padLeft(2, '0')}:${atual.minute.toString().padLeft(2, '0')}";
+          horarios.add(formatado);
+          atual = atual.add(const Duration(minutes: 15));
+        }
+      }
+
+      adicionarTurno(hIn1, mIn1, hFim1, mFim1);
+      adicionarTurno(hIn2, mIn2, hFim2, mFim2);
+
+      return horarios;
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<void> _bloquearDiaTodo(
+    BuildContext contextWithCubit,
+    String dataEscolhidaStr,
+  ) async {
+    final List<String> todosOsHorarios = _gerarHorariosPorData(
+      dataEscolhidaStr,
+    );
+
+    if (todosOsHorarios.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("A barbearia já está fechada neste dia da semana!"),
+          backgroundColor: Colors.orangeAccent,
+        ),
+      );
+      return;
+    }
+
+    final partes = dataEscolhidaStr.split('-');
+    final String dataFormatada = partes.length == 3
+        ? "${partes[2]}/${partes[1]}/${partes[0]}"
+        : dataEscolhidaStr;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: const Color(0xFF141414),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.redAccent),
+            SizedBox(width: 10),
+            Text(
+              "Bloquear Dia Todo",
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          "Tem certeza que deseja fechar a agenda e indisponibilizar TODOS os horários do dia $dataFormatada?",
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text(
+              "Voltar",
+              style: TextStyle(color: Colors.white38),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text(
+              "SIM, FECHAR O DIA",
+              style: TextStyle(
+                color: Colors.redAccent,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await _bloquearHorario(
+        contextWithCubit,
+        dataEscolhidaStr,
+        todosOsHorarios,
       );
     }
   }
@@ -371,11 +510,13 @@ class _CalendarBarberState extends State<CalendarBarber> {
                               apptService['services'] as Map<String, dynamic>?;
                           if (s != null) {
                             if (s['name'] != null) nomes.add(s['name']);
-                            if (s['price'] != null)
+                            if (s['price'] != null) {
                               totalPrice += (s['price'] as num).toDouble();
-                            if (s['duration_minutes'] != null)
+                            }
+                            if (s['duration_minutes'] != null) {
                               totalDuration += (s['duration_minutes'] as num)
                                   .toInt();
+                            }
                           }
                         }
                         if (nomes.isNotEmpty) combinedNames = nomes.join(' + ');

@@ -13,6 +13,8 @@ class ModalDataHora extends StatefulWidget {
   final bool isMultiSelect;
   final Function(String, List<String>)? onMultiSelect;
 
+  final Function(String data)? onBloquearDiaTodo;
+
   const ModalDataHora({
     super.key,
     required this.selectedServices,
@@ -22,6 +24,7 @@ class ModalDataHora extends StatefulWidget {
     required this.onHorarioSelecionado,
     this.isMultiSelect = false,
     this.onMultiSelect,
+    this.onBloquearDiaTodo,
   });
 
   @override
@@ -94,6 +97,38 @@ class _ModalDataHoraState extends State<ModalDataHora> {
         minutoFim: 0,
       ),
     ];
+  }
+
+  List<String> get todosOsHorariosDoDiaSelecionado {
+    final List<String> horariosGerados = [];
+
+    for (var turno in turnosDisponiveis) {
+      DateTime horaAtual = DateTime(
+        2026,
+        1,
+        1,
+        turno.horaInicio,
+        turno.minutoInicio,
+      );
+      final DateTime horaFim = DateTime(
+        2026,
+        1,
+        1,
+        turno.horaFim,
+        turno.minutoFim,
+      );
+
+      while (!horaAtual.isAfter(horaFim)) {
+        final String horaFormatada =
+            "${horaAtual.hour.toString().padLeft(2, '0')}:${horaAtual.minute.toString().padLeft(2, '0')}";
+
+        horariosGerados.add(horaFormatada);
+
+        horaAtual = horaAtual.add(const Duration(minutes: 15));
+      }
+    }
+
+    return horariosGerados;
   }
 
   int _currentMonth = DateTime.now().month;
@@ -532,6 +567,35 @@ class _ModalDataHoraState extends State<ModalDataHora> {
     return Column(
       key: const ValueKey('horarios'),
       children: [
+        if (widget.isMultiSelect && widget.onBloquearDiaTodo != null) ...[
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent.withOpacity(0.15),
+                foregroundColor: Colors.redAccent,
+                side: const BorderSide(color: Colors.redAccent, width: 1.5),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                elevation: 0,
+              ),
+              icon: const Icon(Icons.event_busy_outlined, size: 20),
+              label: const Text(
+                "Bloquear o Dia Todo",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+              ),
+              onPressed: () {
+                final String dataFormatada =
+                    "${_currentYear}-${_currentMonth.toString().padLeft(2, '0')}-${_diaSelecionado.toString().padLeft(2, '0')}";
+
+                widget.onBloquearDiaTodo?.call(dataFormatada);
+              },
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
         Row(
           children: List.generate(turnosDoDia.length, (index) {
             bool isSelected = _turnoSelecionadoIndex == index;

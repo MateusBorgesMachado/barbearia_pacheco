@@ -1,4 +1,8 @@
 import 'package:barbearia_pacheco/core/services/notification_service.dart';
+import 'package:barbearia_pacheco/features/auth/controllers/auth_gate.dart';
+import 'package:barbearia_pacheco/features/auth/controllers/login_cubit.dart';
+import 'package:barbearia_pacheco/features/auth/data/auth_repository.dart';
+import 'package:barbearia_pacheco/features/auth/data/supabase_auth_repository.dart';
 import 'package:barbearia_pacheco/features/auth/pages/splash_page.dart';
 import 'package:barbearia_pacheco/features/barber/pages/home_page.dart';
 import 'package:barbearia_pacheco/features/client/pages/client_appointments_page.dart';
@@ -7,6 +11,7 @@ import 'package:barbearia_pacheco/features/client/pages/profile_page.dart';
 import 'package:flutter/material.dart';
 import 'package:barbearia_pacheco/features/auth/pages/login_page.dart';
 import 'package:barbearia_pacheco/features/auth/pages/register_page.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() async {
@@ -27,27 +32,29 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Barbearia Sr Pacheco',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        splashFactory: NoSplash.splashFactory,
-        highlightColor: Colors.transparent,
-        splashColor: Colors.transparent,
-        primarySwatch: Colors.amber,
+    return RepositoryProvider<AuthRepository>(
+      create: (context) => SupabaseAuthRepository(),
+
+      child: BlocProvider(
+        create: (context) => LoginCubit(context.read<AuthRepository>()),
+        child: MaterialApp(
+          title: 'Barbearia Pacheco',
+          theme: ThemeData.dark(),
+          debugShowCheckedModeBanner: false,
+
+          initialRoute: '/auth',
+          routes: {
+            '/splash': (context) => const SplashPage(),
+            '/login': (context) => const LoginPage(),
+            '/register': (context) => const CadastroPage(),
+            '/home': (context) => const HomePage(),
+            '/barber': (context) => const BarberMainPage(),
+            '/profile': (context) => const ProfilePage(),
+            '/my_appointments': (context) => const ClientAppointmentsPage(),
+            '/auth': (context) => const AuthGate(),
+          },
+        ),
       ),
-
-      initialRoute: '/home',
-
-      routes: {
-        '/splash': (context) => const SplashPage(),
-        '/login': (context) => const LoginPage(),
-        '/register': (context) => const CadastroPage(),
-        '/home': (context) => const HomePage(),
-        '/barber': (context) => const BarberMainPage(),
-        '/profile': (context) => const ProfilePage(),
-        '/my_appointments': (context) => const ClientAppointmentsPage(),
-      },
     );
   }
 }

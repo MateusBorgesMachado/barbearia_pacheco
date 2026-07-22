@@ -228,12 +228,11 @@ class _ProfilePageState extends State<ProfilePage> {
               icon: Icons.logout,
               title: "Sair da conta",
               onTap: () async {
-                // 🌟 DICA: Lembre-se de deslogar no Supabase antes de mudar a rota!
                 await Supabase.instance.client.auth.signOut();
                 if (context.mounted) {
                   Navigator.pushNamedAndRemoveUntil(
                     context,
-                    '/home', // 🌟 Mudamos de '/login' para '/home' por causa do Modo Convidado
+                    '/home',
                     (route) => false,
                   );
                 }
