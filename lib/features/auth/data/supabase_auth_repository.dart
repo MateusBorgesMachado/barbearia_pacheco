@@ -1,5 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:barbearia_pacheco/core/models/user_model.dart';
+import 'package:barbearia_pacheco/features/auth/models/user_model.dart';
 import 'auth_repository.dart';
 
 class SupabaseAuthRepository implements AuthRepository {

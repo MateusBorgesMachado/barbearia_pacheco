@@ -1,8 +1,8 @@
-import 'package:barbearia_pacheco/core/models/user_model.dart';
+import 'package:barbearia_pacheco/features/auth/models/user_model.dart';
 import 'package:barbearia_pacheco/features/auth/data/auth_repository.dart';
 import 'package:barbearia_pacheco/features/auth/pages/login_page.dart';
-import 'package:barbearia_pacheco/features/barber/pages/home_page.dart';
-import 'package:barbearia_pacheco/features/client/pages/home_page.dart';
+import 'package:barbearia_pacheco/features/dashboard/pages/home_page_barber.dart';
+import 'package:barbearia_pacheco/features/dashboard/pages/home_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 

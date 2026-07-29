@@ -1,4 +1,4 @@
-import 'package:barbearia_pacheco/core/models/user_model.dart';
+import 'package:barbearia_pacheco/features/auth/models/user_model.dart';
 
 abstract class RegisterState {
   const RegisterState();
