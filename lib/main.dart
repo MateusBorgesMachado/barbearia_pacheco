@@ -3,7 +3,6 @@ import 'package:barbearia_pacheco/features/auth/controllers/auth_gate.dart';
 import 'package:barbearia_pacheco/features/auth/controllers/login_cubit.dart';
 import 'package:barbearia_pacheco/features/auth/data/auth_repository.dart';
 import 'package:barbearia_pacheco/features/auth/data/supabase_auth_repository.dart';
-import 'package:barbearia_pacheco/features/auth/pages/splash_page.dart';
 import 'package:barbearia_pacheco/features/dashboard/pages/home_page_barber.dart';
 import 'package:barbearia_pacheco/features/appointments/pages/client_appointments_page.dart';
 import 'package:barbearia_pacheco/features/dashboard/pages/home_page.dart';
@@ -44,7 +43,6 @@ class MyApp extends StatelessWidget {
 
           initialRoute: '/auth',
           routes: {
-            '/splash': (context) => const SplashPage(),
             '/login': (context) => const LoginPage(),
             '/register': (context) => const CadastroPage(),
             '/home': (context) => const HomePage(),

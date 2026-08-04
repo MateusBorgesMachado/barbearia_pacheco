@@ -38,7 +38,7 @@ class _AuthGateState extends State<AuthGate> {
               _telaInicial = const HomePage();
             }
           } else {
-            _telaInicial = const LoginPage();
+            _telaInicial = const HomePage();
           }
           _isLoading = false;
         });

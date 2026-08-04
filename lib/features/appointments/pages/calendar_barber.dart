@@ -21,6 +21,48 @@ class _CalendarBarberState extends State<CalendarBarber> {
   DateTime _selectedDate = DateTime.now();
   final String _barberId = Supabase.instance.client.auth.currentUser?.id ?? "";
 
+  @override
+  void initState() {
+    super.initState();
+
+    _searchStatus();
+  }
+
+  Future<bool> _loadStatus() async {
+    try {
+      final loadStatus = await Supabase.instance.client
+          .from('users')
+          .select('is_active')
+          .eq('id', _barberId)
+          .single();
+
+      return loadStatus['is_active'] as bool;
+    } catch (e) {
+      if (!mounted) return false;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Erro ao carregar status"),
+          backgroundColor: Colors.red,
+        ),
+      );
+
+      return false;
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _searchStatus() async {
+    final bool loadStatus = await _loadStatus();
+
+    if (mounted) {
+      setState(() {
+        _isActive = loadStatus;
+      });
+    }
+  }
+
   Future<void> _toggleStatus() async {
     setState(() => _isLoading = true);
 
