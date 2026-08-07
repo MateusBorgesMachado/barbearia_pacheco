@@ -1,6 +1,6 @@
-import 'package:barbearia_pacheco/features/catalog/data/supabase_service_repository.dart';
-import 'package:barbearia_pacheco/features/catalog/controllers/service_cubit.dart';
-import 'package:barbearia_pacheco/features/catalog/controllers/service_state.dart';
+import 'package:barbearia_pacheco/features/config/data/supabase_service_repository.dart';
+import 'package:barbearia_pacheco/features/config/controllers/service_cubit.dart';
+import 'package:barbearia_pacheco/features/config/controllers/service_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../widgets/modal_add_service.dart';

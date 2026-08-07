@@ -1,5 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:barbearia_pacheco/features/catalog/models/service_model.dart';
+import 'package:barbearia_pacheco/features/config/models/service_model.dart';
 import 'service_repository.dart';
 
 class SupabaseServiceRepository implements ServiceRepository {

@@ -1,4 +1,4 @@
-import 'package:barbearia_pacheco/features/catalog/models/service_model.dart';
+import 'package:barbearia_pacheco/features/config/models/service_model.dart';
 
 abstract class ServiceState {
   const ServiceState();

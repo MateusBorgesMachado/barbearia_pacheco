@@ -1,7 +1,8 @@
+import 'package:barbearia_pacheco/features/config/pages/manage_barber_page.dart';
 import 'package:flutter/material.dart';
 import '../../appointments/pages/calendar_barber.dart';
 import 'report_barber.dart';
-import '../../catalog/pages/service_barber.dart';
+import '../../config/pages/service_barber.dart';
 
 class BarberMainPage extends StatefulWidget {
   const BarberMainPage({super.key});
@@ -17,6 +18,7 @@ class _BarberMainPageState extends State<BarberMainPage> {
     const CalendarBarber(),
     const ReportBarber(),
     const ServiceBarber(),
+    const ManageBarberScreen(),
   ];
 
   @override
@@ -61,6 +63,11 @@ class _BarberMainPageState extends State<BarberMainPage> {
               icon: Icon(Icons.content_cut_outlined),
               activeIcon: Icon(Icons.content_cut),
               label: 'Serviços',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.settings_outlined),
+              activeIcon: Icon(Icons.settings),
+              label: 'Configurações',
             ),
           ],
         ),

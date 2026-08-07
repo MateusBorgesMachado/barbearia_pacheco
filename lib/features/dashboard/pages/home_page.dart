@@ -2,15 +2,15 @@ import 'package:barbearia_pacheco/features/appointments/controllers/appointment_
 import 'package:barbearia_pacheco/features/appointments/controllers/appointment_state.dart';
 import 'package:barbearia_pacheco/features/appointments/data/supabase_appointment_repository.dart';
 import 'package:barbearia_pacheco/features/appointments/models/appointment_model.dart';
-import 'package:barbearia_pacheco/features/catalog/models/service_model.dart';
-import 'package:barbearia_pacheco/features/catalog/notification_service.dart';
+import 'package:barbearia_pacheco/features/config/models/service_model.dart';
+import 'package:barbearia_pacheco/features/config/notification_service.dart';
 import 'package:barbearia_pacheco/features/dashboard/widgets/selection_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../appointments/widgets/modal_barber.dart';
 import '../../appointments/widgets/modal_date_time.dart';
-import '../../catalog/widgets/modal_service.dart';
+import '../../config/widgets/modal_service.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
