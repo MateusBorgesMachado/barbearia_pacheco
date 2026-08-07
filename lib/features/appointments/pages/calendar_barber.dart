@@ -1,7 +1,7 @@
 import 'package:barbearia_pacheco/features/appointments/data/supabase_appointment_repository.dart';
 import 'package:barbearia_pacheco/features/appointments/controllers/appointment_cubit.dart';
 import 'package:barbearia_pacheco/features/appointments/controllers/appointment_state.dart';
-import 'package:barbearia_pacheco/features/catalog/models/service_model.dart';
+import 'package:barbearia_pacheco/features/config/models/service_model.dart';
 import 'package:barbearia_pacheco/features/appointments/widgets/barber_date_picker.dart';
 import 'package:barbearia_pacheco/features/appointments/widgets/modal_date_time.dart';
 import 'package:flutter/material.dart';

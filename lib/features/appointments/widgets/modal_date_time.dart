@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:barbearia_pacheco/features/catalog/models/service_model.dart';
+import 'package:barbearia_pacheco/features/config/models/service_model.dart';
 import 'package:barbearia_pacheco/features/appointments/models/turno_horarios_model.dart';
 
 class ModalDataHora extends StatefulWidget {
@@ -289,6 +289,37 @@ class _ModalDataHoraState extends State<ModalDataHora> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.selectedBarberId == null) {
+      return Container(
+        padding: const EdgeInsets.all(24),
+        child: const Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.person_search_rounded,
+              color: Colors.orangeAccent,
+              size: 48,
+            ),
+            SizedBox(height: 16),
+            Text(
+              "Selecione um barbeiro",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            SizedBox(height: 8),
+            Text(
+              "Para visualizar os horários disponíveis, por favor, selecione o profissional desejado primeiro.",
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white60, fontSize: 14),
+            ),
+          ],
+        ),
+      );
+    }
+
     if (widget.selectedServices.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(24),

@@ -1,12 +1,13 @@
-import 'package:barbearia_pacheco/features/catalog/notification_service.dart';
+import 'package:barbearia_pacheco/features/config/notification_service.dart';
 import 'package:barbearia_pacheco/features/auth/controllers/auth_gate.dart';
 import 'package:barbearia_pacheco/features/auth/controllers/login_cubit.dart';
 import 'package:barbearia_pacheco/features/auth/data/auth_repository.dart';
 import 'package:barbearia_pacheco/features/auth/data/supabase_auth_repository.dart';
+import 'package:barbearia_pacheco/features/config/pages/manage_barber_page.dart';
 import 'package:barbearia_pacheco/features/dashboard/pages/home_page_barber.dart';
 import 'package:barbearia_pacheco/features/appointments/pages/client_appointments_page.dart';
 import 'package:barbearia_pacheco/features/dashboard/pages/home_page.dart';
-import 'package:barbearia_pacheco/features/dashboard/pages/profile_page.dart';
+import 'package:barbearia_pacheco/features/config/pages/profile_page.dart';
 import 'package:flutter/material.dart';
 import 'package:barbearia_pacheco/features/auth/pages/login_page.dart';
 import 'package:barbearia_pacheco/features/auth/pages/register_page.dart';
@@ -50,6 +51,7 @@ class MyApp extends StatelessWidget {
             '/profile': (context) => const ProfilePage(),
             '/my_appointments': (context) => const ClientAppointmentsPage(),
             '/auth': (context) => const AuthGate(),
+            '/manager': (context) => const ManageBarberScreen(),
           },
         ),
       ),

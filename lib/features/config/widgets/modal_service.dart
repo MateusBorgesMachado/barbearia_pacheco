@@ -1,6 +1,6 @@
-import 'package:barbearia_pacheco/features/catalog/data/supabase_service_repository.dart';
+import 'package:barbearia_pacheco/features/config/data/supabase_service_repository.dart';
 import 'package:flutter/material.dart';
-import 'package:barbearia_pacheco/features/catalog/models/service_model.dart';
+import 'package:barbearia_pacheco/features/config/models/service_model.dart';
 
 class ModalService extends StatefulWidget {
   final Function(List<ServiceModel>) onSelect;

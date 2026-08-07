@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:barbearia_pacheco/features/catalog/models/service_model.dart';
-import 'package:barbearia_pacheco/features/catalog/controllers/service_cubit.dart';
+import 'package:barbearia_pacheco/features/config/models/service_model.dart';
+import 'package:barbearia_pacheco/features/config/controllers/service_cubit.dart';
 import 'package:barbearia_pacheco/core/utils/currency_formatter.dart';
 
 class ModalAddService extends StatefulWidget {

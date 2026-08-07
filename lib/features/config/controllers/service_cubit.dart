@@ -1,6 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:barbearia_pacheco/features/catalog/models/service_model.dart';
-import 'package:barbearia_pacheco/features/catalog/data/service_repository.dart';
+import 'package:barbearia_pacheco/features/config/models/service_model.dart';
+import 'package:barbearia_pacheco/features/config/data/service_repository.dart';
 import 'service_state.dart';
 
 class ServiceCubit extends Cubit<ServiceState> {
