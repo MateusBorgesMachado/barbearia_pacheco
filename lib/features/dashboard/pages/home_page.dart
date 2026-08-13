@@ -189,7 +189,7 @@ class _HomePageState extends State<HomePage> {
                       Container(
                         decoration: const BoxDecoration(
                           image: DecorationImage(
-                            image: AssetImage('assets/barbearia_bg.png'),
+                            image: AssetImage('assets/images/barbearia_bg.png'),
                             fit: BoxFit.cover,
                           ),
                         ),
@@ -232,7 +232,7 @@ class _HomePageState extends State<HomePage> {
                         ),
                       ),
                       Image.asset(
-                        'assets/barbearia_logo.png',
+                        'assets/images/barbearia_logo.png',
                         height: logoHeight,
                       ),
                       SizedBox(height: topSpacing),

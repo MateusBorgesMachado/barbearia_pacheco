@@ -737,19 +737,48 @@ class _CalendarBarberState extends State<CalendarBarber> {
                 );
               },
             ),
-            floatingActionButton: FloatingActionButton.extended(
-              backgroundColor: Colors.amber,
-              icon: const Icon(Icons.lock_person_outlined, color: Colors.black),
-              label: const Text(
-                "Bloquear Horário",
-                style: TextStyle(
-                  color: Colors.black,
-                  fontWeight: FontWeight.bold,
+            floatingActionButton: Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                FloatingActionButton.extended(
+                  backgroundColor: Colors.amber,
+                  icon: const Icon(
+                    Icons.lock_person_outlined,
+                    color: Colors.black,
+                  ),
+                  label: const Text(
+                    "Bloquear Horário",
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  onPressed: () {
+                    _openBlockModal(contextInterno, formattedQueryDate);
+                  },
                 ),
-              ),
-              onPressed: () {
-                _openBlockModal(contextInterno, formattedQueryDate);
-              },
+
+                const SizedBox(width: 16),
+
+                FloatingActionButton.extended(
+                  backgroundColor: Colors.amber,
+                  icon: const Icon(
+                    Icons.lock_person_outlined,
+                    color: Colors.black,
+                  ),
+                  label: const Text(
+                    "Marcar horário",
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  onPressed: () {
+                    _openBlockModal(contextInterno, formattedQueryDate);
+                  },
+                ),
+              ],
             ),
           );
         },
