@@ -66,7 +66,7 @@ class _CadastroPageState extends State<CadastroPage> {
                 Container(
                   decoration: const BoxDecoration(
                     image: DecorationImage(
-                      image: AssetImage('assets/barbearia_bg.png'),
+                      image: AssetImage('assets/images/barbearia_bg.png'),
                       fit: BoxFit.cover,
                     ),
                   ),
@@ -101,7 +101,7 @@ class _CadastroPageState extends State<CadastroPage> {
                             children: [
                               SizedBox(height: topSpacing),
                               Image.asset(
-                                'assets/barbearia_logo.png',
+                                'assets/images/barbearia_logo.png',
                                 height: logoHeight,
                               ),
                               const SizedBox(height: 20),
