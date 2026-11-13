@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:barbearia_pacheco/features/appointments/data/supabase_appointment_repository.dart';
+import 'package:barbearia_pacheco/core/utils/date_formatters.dart';
+import 'package:barbearia_pacheco/core/utils/error_messages.dart';
+import 'package:barbearia_pacheco/features/appointments/data/appointment_repository.dart';
 
 class ReportBarber extends StatefulWidget {
   const ReportBarber({super.key});
@@ -10,10 +13,13 @@ class ReportBarber extends StatefulWidget {
 }
 
 class _ReportBarberState extends State<ReportBarber> {
-  final _repository = SupabaseAppointmentRepository();
+  late final AppointmentRepository _repository;
   final String _barberId = Supabase.instance.client.auth.currentUser?.id ?? "";
 
-  DateTime _selectedDate = DateTime.now();
+  DateTimeRange _selectedRange = DateTimeRange(
+    start: DateTime.now(),
+    end: DateTime.now(),
+  );
   bool _isLoading = false;
 
   double _totalRevenue = 0.0;
@@ -23,26 +29,20 @@ class _ReportBarberState extends State<ReportBarber> {
   @override
   void initState() {
     super.initState();
-    final agora = DateTime.now();
-    _fetchFinancialData(agora, agora);
+    _repository = context.read<AppointmentRepository>();
+    final today = DateTime.now();
+    _selectedRange = DateTimeRange(start: today, end: today);
+    _fetchFinancialData(_selectedRange.start, _selectedRange.end);
   }
 
-  String _formatDisplayMonth(DateTime date) {
-    final List<String> months = [
-      "Janeiro",
-      "Fevereiro",
-      "Março",
-      "Abril",
-      "Maio",
-      "Junho",
-      "Julho",
-      "Agosto",
-      "Setembro",
-      "Outubro",
-      "Novembro",
-      "Dezembro",
-    ];
-    return "${months[date.month - 1]} de ${date.year}";
+  bool _countsAsCompleted(Map<String, dynamic> item) {
+    final String status = item["status"] ?? "scheduled";
+    if (status == "canceled" || status == "blocked") return false;
+    if (status == "completed") return true;
+
+    final dateStr = item["appointment_date"] as String? ?? "";
+    final timeStr = item["appointment_time"] as String? ?? "00:00:00";
+    return DateFormatters.isInThePast(dateStr, timeStr);
   }
 
   Future<void> _fetchFinancialData(DateTime startDate, DateTime endDate) async {
@@ -72,7 +72,7 @@ class _ReportBarberState extends State<ReportBarber> {
 
         if (status == "canceled") {
           canceledCount++;
-        } else if (status != "blocked") {
+        } else if (_countsAsCompleted(item)) {
           completedCount++;
 
           final apptServices =
@@ -88,6 +88,7 @@ class _ReportBarberState extends State<ReportBarber> {
       }
 
       setState(() {
+        _selectedRange = DateTimeRange(start: startDate, end: endDate);
         _totalRevenue = calculatedRevenue;
         _completedServicesCount = completedCount;
         _canceledServicesCount = canceledCount;
@@ -96,7 +97,7 @@ class _ReportBarberState extends State<ReportBarber> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("Erro ao carregar relatório: ${error.toString()}"),
+            content: Text(userFacingError(error)),
             backgroundColor: Colors.redAccent,
           ),
         );
@@ -133,10 +134,7 @@ class _ReportBarberState extends State<ReportBarber> {
                 context: context,
                 firstDate: DateTime(2025),
                 lastDate: DateTime.now(),
-                initialDateRange: DateTimeRange(
-                  start: _selectedDate,
-                  end: _selectedDate,
-                ),
+                initialDateRange: _selectedRange,
                 builder: (context, child) {
                   return Theme(
                     data: Theme.of(context).copyWith(
@@ -150,7 +148,6 @@ class _ReportBarberState extends State<ReportBarber> {
                         backgroundColor: const Color(0xFF141414),
                         headerBackgroundColor: const Color(0xFF141414),
                         headerForegroundColor: Colors.white,
-
                         dayForegroundColor: WidgetStateProperty.resolveWith((
                           states,
                         ) {
@@ -162,7 +159,6 @@ class _ReportBarberState extends State<ReportBarber> {
                           }
                           return Colors.white;
                         }),
-
                         dayBackgroundColor: WidgetStateProperty.resolveWith((
                           states,
                         ) {
@@ -171,7 +167,6 @@ class _ReportBarberState extends State<ReportBarber> {
                           }
                           return Colors.transparent;
                         }),
-
                         todayForegroundColor: const WidgetStatePropertyAll(
                           Colors.white,
                         ),
@@ -179,10 +174,9 @@ class _ReportBarberState extends State<ReportBarber> {
                         todayBackgroundColor: const WidgetStatePropertyAll(
                           Colors.transparent,
                         ),
-
                         rangePickerBackgroundColor: const Color(0xFF141414),
-                        rangeSelectionBackgroundColor: Colors.amber.withOpacity(
-                          0.5,
+                        rangeSelectionBackgroundColor: Colors.amber.withValues(
+                          alpha: 0.5,
                         ),
                       ),
                     ),
@@ -192,6 +186,7 @@ class _ReportBarberState extends State<ReportBarber> {
               );
 
               if (range != null) {
+                if (!context.mounted) return;
                 final int diferenca = range.end.difference(range.start).inDays;
 
                 if (diferenca > 30) {
@@ -230,7 +225,7 @@ class _ReportBarberState extends State<ReportBarber> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      "Faturamento em: ${_formatDisplayMonth(_selectedDate)}",
+                      "Faturamento em: ${DateFormatters.displayRange(_selectedRange.start, _selectedRange.end)}",
                       style: const TextStyle(
                         color: Colors.white54,
                         fontSize: 14,
@@ -262,7 +257,7 @@ class _ReportBarberState extends State<ReportBarber> {
                           "$_canceledServicesCount",
                           Icons.cancel_outlined,
                           textScale,
-                          Colors.redAccent.withOpacity(0.8),
+                          Colors.redAccent.withValues(alpha: 0.8),
                         ),
                       ],
                     ),

@@ -28,6 +28,7 @@ class CustomInput extends StatelessWidget {
       child: TextFormField(
         controller: controller,
         obscureText: isPassword,
+        validator: validator,
         style: const TextStyle(color: Colors.white),
         decoration: InputDecoration(
           labelText: label,

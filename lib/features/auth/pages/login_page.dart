@@ -2,7 +2,7 @@ import 'package:barbearia_pacheco/core/widgets/custom_button_login.dart';
 import 'package:barbearia_pacheco/core/widgets/custom_input_login.dart';
 import 'package:barbearia_pacheco/features/auth/controllers/login_cubit.dart';
 import 'package:barbearia_pacheco/features/auth/controllers/login_state.dart';
-import 'package:barbearia_pacheco/features/auth/data/supabase_auth_repository.dart';
+import 'package:barbearia_pacheco/features/auth/data/auth_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -25,6 +25,19 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
+  Future<void> _showForgotPasswordDialog(BuildContext cubitContext) async {
+    final email = await showDialog<String>(
+      context: cubitContext,
+      builder: (_) => _ForgotPasswordDialog(
+        initialEmail: _emailController.text.trim(),
+      ),
+    );
+
+    if (email != null && email.isNotEmpty && cubitContext.mounted) {
+      cubitContext.read<LoginCubit>().sendPasswordReset(email);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final double screenHeight = MediaQuery.of(context).size.height;
@@ -35,10 +48,19 @@ class _LoginPageState extends State<LoginPage> {
 
     return Scaffold(
       body: BlocProvider(
-        create: (context) => LoginCubit(SupabaseAuthRepository()),
+        create: (context) => LoginCubit(context.read<AuthRepository>()),
         child: BlocConsumer<LoginCubit, LoginState>(
           listener: (context, state) {
-            if (state is LoginSuccess) {
+            if (state is LoginPasswordResetSent) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    "Se este e-mail estiver cadastrado, você receberá o link para redefinir a senha.",
+                  ),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            } else if (state is LoginSuccess) {
               if (state.user.role == 'barber') {
                 Navigator.pushNamedAndRemoveUntil(
                   context,
@@ -68,7 +90,7 @@ class _LoginPageState extends State<LoginPage> {
                 Container(
                   decoration: const BoxDecoration(
                     image: DecorationImage(
-                      image: AssetImage('assets/barbearia_bg.png'),
+                      image: AssetImage('assets/images/barbearia_bg.png'),
                       fit: BoxFit.cover,
                     ),
                   ),
@@ -106,7 +128,7 @@ class _LoginPageState extends State<LoginPage> {
                             children: [
                               SizedBox(height: topSpacing),
                               Image.asset(
-                                'assets/barbearia_logo.png',
+                                'assets/images/barbearia_logo.png',
                                 height: logoHeight,
                               ),
                               const SizedBox(height: 20),
@@ -161,7 +183,9 @@ class _LoginPageState extends State<LoginPage> {
                               Align(
                                 alignment: Alignment.centerRight,
                                 child: TextButton(
-                                  onPressed: () {},
+                                  onPressed: () => _showForgotPasswordDialog(
+                                    context,
+                                  ),
                                   child: const Text(
                                     "Esqueci minha senha",
                                     style: TextStyle(color: Colors.white54),
@@ -224,6 +248,68 @@ class _LoginPageState extends State<LoginPage> {
           },
         ),
       ),
+    );
+  }
+}
+
+class _ForgotPasswordDialog extends StatefulWidget {
+  final String initialEmail;
+
+  const _ForgotPasswordDialog({required this.initialEmail});
+
+  @override
+  State<_ForgotPasswordDialog> createState() => _ForgotPasswordDialogState();
+}
+
+class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
+  late final TextEditingController _emailController;
+
+  @override
+  void initState() {
+    super.initState();
+    _emailController = TextEditingController(text: widget.initialEmail);
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: const Color(0xFF141414),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      title: const Text(
+        "Recuperar senha",
+        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+      ),
+      content: TextField(
+        controller: _emailController,
+        keyboardType: TextInputType.emailAddress,
+        style: const TextStyle(color: Colors.white),
+        decoration: const InputDecoration(
+          labelText: "E-mail da conta",
+          labelStyle: TextStyle(color: Colors.white54),
+          enabledBorder: UnderlineInputBorder(
+            borderSide: BorderSide(color: Colors.white24),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text("Cancelar", style: TextStyle(color: Colors.white38)),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context, _emailController.text.trim()),
+          child: const Text(
+            "Enviar link",
+            style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold),
+          ),
+        ),
+      ],
     );
   }
 }

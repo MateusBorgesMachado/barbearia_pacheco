@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:barbearia_pacheco/features/appointments/data/supabase_appointment_repository.dart';
+import 'package:barbearia_pacheco/core/utils/date_formatters.dart';
+import 'package:barbearia_pacheco/core/utils/error_messages.dart';
+import 'package:barbearia_pacheco/features/appointments/data/appointment_repository.dart';
+import 'package:barbearia_pacheco/features/config/notification_service.dart';
 
 class ClientAppointmentsPage extends StatefulWidget {
   const ClientAppointmentsPage({super.key});
@@ -10,20 +14,55 @@ class ClientAppointmentsPage extends StatefulWidget {
 }
 
 class _ClientAppointmentsPageState extends State<ClientAppointmentsPage> {
-  final _repository = SupabaseAppointmentRepository();
   final _supabase = Supabase.instance.client;
   bool _isActionLoading = false;
+  late Future<List<Map<String, dynamic>>> _appointmentsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _appointmentsFuture = _loadAppointments();
+  }
+
+  Future<List<Map<String, dynamic>>> _loadAppointments() {
+    final clientId = _supabase.auth.currentUser?.id ?? "";
+    final todayStr = DateFormatters.ymd(DateTime.now());
+
+    return _supabase
+        .from('appointments')
+        .select('''
+          id,
+          client_id,
+          barber_id,
+          appointment_date,
+          appointment_time,
+          status,
+          appointment_services (
+            services (
+              id, name, price, duration_minutes
+            )
+          )
+        ''')
+        .eq('client_id', clientId)
+        .gte('appointment_date', todayStr)
+        .order('appointment_date', ascending: true);
+  }
+
+  void _reload() {
+    setState(() {
+      _appointmentsFuture = _loadAppointments();
+    });
+  }
 
   bool _canCancel(String dateStr, String timeStr, String status) {
-    if (status == 'canceled') return false;
+    if (status == 'canceled' || status == 'completed') return false;
 
     try {
-      final String cleanedTime = timeStr.length > 5
-          ? timeStr.substring(0, 5)
-          : timeStr;
-      final DateTime appointmentDateTime = DateTime.parse(
-        "$dateStr $cleanedTime:00",
+      final DateTime? appointmentDateTime = DateFormatters.parseAppointment(
+        dateStr,
+        timeStr,
       );
+      if (appointmentDateTime == null) return false;
       final DateTime now = DateTime.now();
 
       if (appointmentDateTime.isBefore(now)) return false;
@@ -41,7 +80,12 @@ class _ClientAppointmentsPageState extends State<ClientAppointmentsPage> {
     });
 
     try {
-      await _repository.cancelAppointment(appointmentId);
+      await context.read<AppointmentRepository>().cancelAppointment(
+        appointmentId,
+      );
+      await NotificationService.cancelAppointmentNotification(
+        DateFormatters.notificationId(appointmentId),
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -49,14 +93,13 @@ class _ClientAppointmentsPageState extends State<ClientAppointmentsPage> {
             backgroundColor: Colors.green,
           ),
         );
+        _reload();
       }
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              "Erro ao cancelar: ${error.toString().replaceAll("Exception: ", "")}",
-            ),
+            content: Text(userFacingError(error)),
             backgroundColor: Colors.redAccent,
           ),
         );
@@ -73,11 +116,8 @@ class _ClientAppointmentsPageState extends State<ClientAppointmentsPage> {
   @override
   Widget build(BuildContext context) {
     final textScale = MediaQuery.textScaleFactorOf(context);
-    final clientId = _supabase.auth.currentUser?.id ?? "";
-
     final DateTime now = DateTime.now();
-    final String todayStr =
-        "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+    final String todayStr = DateFormatters.ymd(now);
 
     return Scaffold(
       backgroundColor: const Color(0xFF0D0D0D),
@@ -96,24 +136,7 @@ class _ClientAppointmentsPageState extends State<ClientAppointmentsPage> {
       body: _isActionLoading
           ? const Center(child: CircularProgressIndicator(color: Colors.white))
           : FutureBuilder<List<Map<String, dynamic>>>(
-              future: _supabase
-                  .from('appointments')
-                  .select('''
-                    id,
-                    client_id,
-                    barber_id,
-                    appointment_date,
-                    appointment_time,
-                    status,
-                    appointment_services (
-                      services (
-                        id, name, price, duration_minutes
-                      )
-                    )
-                  ''')
-                  .eq('client_id', clientId)
-                  .gte('appointment_date', todayStr)
-                  .order('appointment_date', ascending: true),
+              future: _appointmentsFuture,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(
@@ -136,11 +159,13 @@ class _ClientAppointmentsPageState extends State<ClientAppointmentsPage> {
                 final listFutureAppointments = appointments.where((item) {
                   final String rawDate = item['appointment_date'] as String;
                   final String rawTime = item['appointment_time'] as String;
+                  final String status = item['status'] ?? 'scheduled';
+                  if (status == 'completed') return false;
 
                   if (rawDate == todayStr) {
-                    final String cleanedTime = rawTime.length > 5
-                        ? rawTime.substring(0, 5)
-                        : rawTime;
+                    final String cleanedTime = DateFormatters.displayTime(
+                      rawTime,
+                    );
                     final int slotHour = int.parse(cleanedTime.split(':')[0]);
                     final int slotMinute = int.parse(cleanedTime.split(':')[1]);
 
@@ -180,8 +205,9 @@ class _ClientAppointmentsPageState extends State<ClientAppointmentsPage> {
                             apptService['services'] as Map<String, dynamic>?;
                         if (s != null) {
                           if (s['name'] != null) nomes.add(s['name']);
-                          if (s['price'] != null)
+                          if (s['price'] != null) {
                             totalPrice += (s['price'] as num).toDouble();
+                          }
                         }
                       }
                       if (nomes.isNotEmpty) {
@@ -199,7 +225,9 @@ class _ClientAppointmentsPageState extends State<ClientAppointmentsPage> {
                         .split('-')
                         .reversed
                         .join('/');
-                    final String formattedTime = rawTime.substring(0, 5);
+                    final String formattedTime = DateFormatters.displayTime(
+                      rawTime,
+                    );
 
                     final bool allowCancellation = _canCancel(
                       rawDate,
@@ -215,7 +243,7 @@ class _ClientAppointmentsPageState extends State<ClientAppointmentsPage> {
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
                           color: isCanceled
-                              ? Colors.redAccent.withOpacity(0.2)
+                              ? Colors.redAccent.withValues(alpha: 0.2)
                               : Colors.white10,
                         ),
                       ),
@@ -258,7 +286,9 @@ class _ClientAppointmentsPageState extends State<ClientAppointmentsPage> {
                                       : "Valor: R\$ ${totalPrice.toStringAsFixed(2)}",
                                   style: TextStyle(
                                     color: isCanceled
-                                        ? Colors.redAccent.withOpacity(0.6)
+                                        ? Colors.redAccent.withValues(
+                                            alpha: 0.6,
+                                          )
                                         : Colors.white54,
                                     fontSize: 12,
                                   ),

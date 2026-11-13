@@ -1,4 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:barbearia_pacheco/core/utils/date_formatters.dart';
 import 'package:barbearia_pacheco/features/appointments/models/appointment_model.dart';
 import 'appointment_repository.dart';
 
@@ -6,30 +7,20 @@ class SupabaseAppointmentRepository implements AppointmentRepository {
   final SupabaseClient _supabaseClient = Supabase.instance.client;
 
   @override
-  Future<void> createAppointment(AppointmentModel appointment) async {
+  Future<String> createAppointment(AppointmentModel appointment) async {
     try {
-      final response = await _supabaseClient
-          .from('appointments')
-          .insert(appointment.toJson())
-          .select('id')
-          .single();
+      final result = await _supabaseClient.rpc(
+        'book_appointment',
+        params: {
+          'p_client_id': appointment.clientId,
+          'p_barber_id': appointment.barberId,
+          'p_date': appointment.appointmentDate,
+          'p_time': DateFormatters.normalizeTime(appointment.appointmentTime),
+          'p_service_ids': appointment.serviceIds,
+        },
+      );
 
-      final String newAppointmentId = response['id'];
-
-      final List<Map<String, dynamic>> servicesToInsert = appointment.serviceIds
-          .map((serviceId) {
-            return {
-              'appointment_id': newAppointmentId,
-              'service_id': serviceId,
-            };
-          })
-          .toList();
-
-      if (servicesToInsert.isNotEmpty) {
-        await _supabaseClient
-            .from('appointment_services')
-            .insert(servicesToInsert);
-      }
+      return result.toString();
     } catch (error) {
       throw Exception("Erro ao salvar o agendamento no sistema: $error");
     }
@@ -49,6 +40,7 @@ class SupabaseAppointmentRepository implements AppointmentRepository {
             appointment_time,
             status,
             client_id,
+            walk_in_name,
             users!appointments_client_id_fkey(name),
             appointment_services (
               services (
@@ -78,38 +70,73 @@ class SupabaseAppointmentRepository implements AppointmentRepository {
     }
   }
 
+  @override
+  Future<void> completeAppointment(String appointmentId) async {
+    try {
+      await _supabaseClient
+          .from('appointments')
+          .update({'status': 'completed'})
+          .eq('id', appointmentId);
+    } catch (error) {
+      throw Exception("Erro ao concluir o agendamento: $error");
+    }
+  }
+
+  @override
   Future<void> blockTimeSlot({
     required String barberId,
     required String date,
     required String time,
-    required List<String> serviceIds,
   }) async {
     try {
-      final Map<String, dynamic> dadosAgendamento = {
-        'barber_id': barberId,
-        'client_id': barberId,
-        'appointment_date': date,
-        'appointment_time': time,
-        'status': 'blocked',
-      };
-
-      await _supabaseClient.from('appointments').insert(dadosAgendamento);
-
-      if (serviceIds.isEmpty) return;
+      await _supabaseClient.rpc(
+        'block_time_slot',
+        params: {
+          'p_barber_id': barberId,
+          'p_date': date,
+          'p_time': DateFormatters.normalizeTime(time),
+        },
+      );
     } catch (error) {
       throw Exception(error.toString());
     }
   }
 
+  @override
+  Future<String> bookWalkInAppointment({
+    required String barberId,
+    required String date,
+    required String time,
+    required List<String> serviceIds,
+    required String clientName,
+  }) async {
+    try {
+      final result = await _supabaseClient.rpc(
+        'book_walk_in_appointment',
+        params: {
+          'p_barber_id': barberId,
+          'p_date': date,
+          'p_time': DateFormatters.normalizeTime(time),
+          'p_service_ids': serviceIds,
+          'p_client_name': clientName,
+        },
+      );
+      return result.toString();
+    } catch (error) {
+      throw Exception("Erro ao marcar o horário: $error");
+    }
+  }
+
+  @override
   Future<List<Map<String, dynamic>>> fetchRelatorioPeriodo({
     required String barberId,
     required DateTime startDate,
     required DateTime endDate,
   }) async {
-    final startStr = startDate.toIso8601String();
-    final endStr = endDate.toIso8601String();
+    final startStr = DateFormatters.ymd(startDate);
+    final endStr = DateFormatters.ymd(endDate);
 
-    return await Supabase.instance.client
+    return await _supabaseClient
         .from('appointments')
         .select('*, appointment_services(services(price, name))')
         .eq('barber_id', barberId)

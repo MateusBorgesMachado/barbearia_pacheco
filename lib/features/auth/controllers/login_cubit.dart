@@ -48,4 +48,14 @@ class LoginCubit extends Cubit<LoginState> {
       emit(LoginError(traduzirErroSupabase(error)));
     }
   }
+
+  Future<void> sendPasswordReset(String email) async {
+    emit(const LoginLoading());
+    try {
+      await _authRepository.resetPassword(email);
+      emit(const LoginPasswordResetSent());
+    } catch (error) {
+      emit(LoginError(traduzirErroSupabase(error)));
+    }
+  }
 }

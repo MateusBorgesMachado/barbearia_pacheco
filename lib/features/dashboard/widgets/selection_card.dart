@@ -4,12 +4,14 @@ class SelectionCard extends StatelessWidget {
   final IconData icon;
   final String title;
   final VoidCallback onTap;
+  final bool enabled;
 
   const SelectionCard({
     super.key,
     required this.icon,
     required this.title,
     required this.onTap,
+    this.enabled = true,
   });
 
   @override
@@ -24,18 +26,21 @@ class SelectionCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: Colors.white10, width: 1),
         ),
-        child: Row(
-          children: [
-            Icon(icon, color: Colors.white70, size: 24),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Text(
-                title,
-                style: const TextStyle(color: Colors.white70, fontSize: 16),
+        child: Opacity(
+          opacity: enabled ? 1 : 0.45,
+          child: Row(
+            children: [
+              Icon(icon, color: Colors.white70, size: 24),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(color: Colors.white70, fontSize: 16),
+                ),
               ),
-            ),
-            const Icon(Icons.chevron_right, color: Colors.white30, size: 20),
-          ],
+              const Icon(Icons.chevron_right, color: Colors.white30, size: 20),
+            ],
+          ),
         ),
       ),
     );

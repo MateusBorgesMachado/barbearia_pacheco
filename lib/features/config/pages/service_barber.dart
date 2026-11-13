@@ -1,4 +1,4 @@
-import 'package:barbearia_pacheco/features/config/data/supabase_service_repository.dart';
+import 'package:barbearia_pacheco/features/config/data/service_repository.dart';
 import 'package:barbearia_pacheco/features/config/controllers/service_cubit.dart';
 import 'package:barbearia_pacheco/features/config/controllers/service_state.dart';
 import 'package:flutter/material.dart';
@@ -41,7 +41,7 @@ class _ServiceBarberState extends State<ServiceBarber> {
 
     return BlocProvider(
       create: (context) =>
-          ServiceCubit(SupabaseServiceRepository())..fetchServices(),
+          ServiceCubit(context.read<ServiceRepository>())..fetchServices(),
       child: Scaffold(
         backgroundColor: const Color(0xFF0D0D0D),
         appBar: AppBar(

@@ -17,6 +17,10 @@ class LoginSuccess extends LoginState {
   const LoginSuccess(this.user);
 }
 
+class LoginPasswordResetSent extends LoginState {
+  const LoginPasswordResetSent();
+}
+
 class LoginError extends LoginState {
   final String errorMessage;
   const LoginError(this.errorMessage);
