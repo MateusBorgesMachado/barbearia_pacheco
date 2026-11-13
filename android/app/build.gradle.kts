@@ -13,6 +13,12 @@ if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 }
 
+val releaseStorePath = keystoreProperties.getProperty("storeFile")?.trim().orEmpty()
+val releaseStorePassword = keystoreProperties.getProperty("storePassword")?.trim().orEmpty()
+val releaseKeyAlias = keystoreProperties.getProperty("keyAlias")?.trim().orEmpty()
+val releaseKeyPassword = keystoreProperties.getProperty("keyPassword")?.trim().orEmpty()
+val releaseStore = releaseStorePath.takeIf { it.isNotEmpty() }?.let { file(it) }
+
 android {
     namespace = "br.com.brgsystem.barbearia_pacheco"
     compileSdk = flutter.compileSdkVersion
@@ -37,27 +43,50 @@ android {
         versionName = flutter.versionName
     }
 
-    val releaseStoreFile = keystoreProperties.getProperty("storeFile")
-    if (releaseStoreFile != null) {
+    if (releaseStore != null) {
         signingConfigs {
             create("release") {
-                storeFile = file(releaseStoreFile)
-                storePassword = keystoreProperties.getProperty("storePassword")
-                keyAlias = keystoreProperties.getProperty("keyAlias")
-                keyPassword = keystoreProperties.getProperty("keyPassword")
+                storeFile = releaseStore
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
             }
         }
     }
 
     buildTypes {
         release {
-            signingConfig =
-                if (releaseStoreFile != null) {
-                    signingConfigs.getByName("release")
-                } else {
-                    signingConfigs.getByName("debug")
-                }
+            if (releaseStore != null) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
+    }
+}
+
+gradle.taskGraph.whenReady {
+    val buildingRelease = allTasks.any { it.name.contains("Release") }
+    if (!buildingRelease) {
+        return@whenReady
+    }
+
+    val problems = mutableListOf<String>()
+    if (releaseStore == null || releaseStore.exists().not()) {
+        problems += "keystore de upload não encontrado."
+    }
+    if (releaseStorePassword.isEmpty() || releaseStorePassword == "SENHA_DO_KEYSTORE") {
+        problems += "storePassword ainda é o texto de exemplo."
+    }
+    if (releaseKeyPassword.isEmpty() || releaseKeyPassword == "SENHA_DA_CHAVE") {
+        problems += "keyPassword ainda é o texto de exemplo."
+    }
+    if (releaseKeyAlias.isEmpty()) {
+        problems += "keyAlias ausente."
+    }
+    if (problems.isNotEmpty()) {
+        throw GradleException(
+            "Build de release recusado para não assinar com a chave de debug. " +
+                "Ajuste android/key.properties: ${problems.joinToString(" ")}",
+        )
     }
 }
 

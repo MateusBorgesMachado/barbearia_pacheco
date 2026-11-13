@@ -1,7 +1,7 @@
 name: barbearia_pacheco
 description: "Agendamento de horários e gestão da agenda da Barbearia Sr. Pacheco."
 publish_to: 'none'
-version: 1.1.7+16
+version: 1.1.7+17
 environment:
   sdk: ^3.10.4
 
