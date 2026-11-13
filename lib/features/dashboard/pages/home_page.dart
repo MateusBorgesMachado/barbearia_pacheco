@@ -1,6 +1,7 @@
+import 'package:barbearia_pacheco/core/utils/date_formatters.dart';
 import 'package:barbearia_pacheco/features/appointments/controllers/appointment_cubit.dart';
 import 'package:barbearia_pacheco/features/appointments/controllers/appointment_state.dart';
-import 'package:barbearia_pacheco/features/appointments/data/supabase_appointment_repository.dart';
+import 'package:barbearia_pacheco/features/appointments/data/appointment_repository.dart';
 import 'package:barbearia_pacheco/features/appointments/models/appointment_model.dart';
 import 'package:barbearia_pacheco/features/config/models/service_model.dart';
 import 'package:barbearia_pacheco/features/config/notification_service.dart';
@@ -137,14 +138,15 @@ class _HomePageState extends State<HomePage> {
     final double elementSpacing = (screenHeight * 0.03).clamp(12.0, 30.0);
 
     return BlocProvider(
-      create: (context) => AppointmentCubit(SupabaseAppointmentRepository()),
+      create: (context) =>
+          AppointmentCubit(context.read<AppointmentRepository>()),
       child: Scaffold(
         backgroundColor: const Color(0xFF0D0D0D),
         body: BlocConsumer<AppointmentCubit, AppointmentState>(
           listener: (context, state) {
             if (state is AppointmentCreationSuccess) {
               NotificationService.scheduleAppointmentNotification(
-                id: DateTime.now().millisecondsSinceEpoch.remainder(100000),
+                id: DateFormatters.notificationId(state.appointmentId),
                 serviceName: _selectedService.isNotEmpty
                     ? _selectedService.map((s) => s.name).join(' + ')
                     : "Serviço",
@@ -277,6 +279,8 @@ class _HomePageState extends State<HomePage> {
                                       setState(() {
                                         _selectedBarberId = id;
                                         _selectedBarberName = name;
+                                        _selectedDate = null;
+                                        _selectedTime = null;
                                       });
                                     },
                                   ),
@@ -295,6 +299,8 @@ class _HomePageState extends State<HomePage> {
                                     onSelect: (List<ServiceModel> services) {
                                       setState(() {
                                         _selectedService = services;
+                                        _selectedDate = null;
+                                        _selectedTime = null;
                                       });
                                     },
                                   ),
@@ -308,23 +314,39 @@ class _HomePageState extends State<HomePage> {
                                         _selectedTime != null)
                                     ? "${_selectedDate!.split('-').reversed.join('/')} às $_selectedTime"
                                     : "Selecionar data e hora",
-                                onTap: () => _openPopup(
-                                  context,
-                                  title: "Data e Horário",
-                                  content: ModalDataHora(
-                                    selectedServices: _selectedService,
-                                    selectedBarberId: _selectedBarberId,
-                                    barberId: _selectedBarberId ?? "",
-                                    onHorarioSelecionado: (_) async {},
-
-                                    onSelect: (date, time) {
-                                      setState(() {
-                                        _selectedDate = date;
-                                        _selectedTime = time;
-                                      });
-                                    },
-                                  ),
-                                ),
+                                enabled:
+                                    _selectedBarberId != null &&
+                                    _selectedService.isNotEmpty,
+                                onTap: () {
+                                  if (_selectedBarberId == null ||
+                                      _selectedService.isEmpty) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          "Escolha o barbeiro e o serviço antes da data.",
+                                        ),
+                                        backgroundColor: Colors.orangeAccent,
+                                      ),
+                                    );
+                                    return;
+                                  }
+                                  _openPopup(
+                                    context,
+                                    title: "Data e Horário",
+                                    content: ModalDataHora(
+                                      selectedServices: _selectedService,
+                                      selectedBarberId: _selectedBarberId,
+                                      barberId: _selectedBarberId ?? "",
+                                      onHorarioSelecionado: (_) async {},
+                                      onSelect: (date, time) {
+                                        setState(() {
+                                          _selectedDate = date;
+                                          _selectedTime = time;
+                                        });
+                                      },
+                                    ),
+                                  );
+                                },
                               ),
                               const SizedBox(height: 40),
                               SizedBox(

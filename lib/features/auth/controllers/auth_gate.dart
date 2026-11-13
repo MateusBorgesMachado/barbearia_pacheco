@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class AuthGate extends StatefulWidget {
-  const AuthGate({Key? key}) : super(key: key);
+  const AuthGate({super.key});
 
   @override
   State<AuthGate> createState() => _AuthGateState();
@@ -16,6 +16,7 @@ class AuthGate extends StatefulWidget {
 class _AuthGateState extends State<AuthGate> {
   bool _isLoading = true;
   Widget _telaInicial = const LoginPage();
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -26,11 +27,11 @@ class _AuthGateState extends State<AuthGate> {
   Future<void> _verificarSessao() async {
     try {
       final authRepository = context.read<AuthRepository>();
-
       final UserModel? user = await authRepository.getCurrentUser();
 
       if (mounted) {
         setState(() {
+          _errorMessage = null;
           if (user != null) {
             if (user.role == 'barber') {
               _telaInicial = const BarberMainPage();
@@ -43,9 +44,19 @@ class _AuthGateState extends State<AuthGate> {
           _isLoading = false;
         });
       }
-    } catch (e) {
+    } on AuthProfileException catch (e) {
       if (mounted) {
         setState(() {
+          _errorMessage = e.message;
+          _telaInicial = const LoginPage();
+          _isLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _errorMessage =
+              'Não foi possível verificar sua sessão. Tente entrar novamente.';
           _telaInicial = const LoginPage();
           _isLoading = false;
         });
@@ -60,6 +71,19 @@ class _AuthGateState extends State<AuthGate> {
         backgroundColor: Color(0xFF141414),
         body: Center(child: CircularProgressIndicator(color: Colors.amber)),
       );
+    }
+
+    if (_errorMessage != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _errorMessage == null) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_errorMessage!),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+        _errorMessage = null;
+      });
     }
 
     return _telaInicial;

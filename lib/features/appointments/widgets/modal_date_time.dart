@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:barbearia_pacheco/core/utils/business_hours.dart';
+import 'package:barbearia_pacheco/core/utils/date_formatters.dart';
 import 'package:barbearia_pacheco/features/config/models/service_model.dart';
 import 'package:barbearia_pacheco/features/appointments/models/turno_horarios_model.dart';
 
@@ -36,67 +38,8 @@ class _ModalDataHoraState extends State<ModalDataHora> {
 
   List<TurnoHorarios> get turnosDisponiveis {
     if (_diaSelecionado == null) return [];
-
     final data = DateTime(_currentYear, _currentMonth, _diaSelecionado!);
-    int diaDaSemana = data.weekday;
-
-    if (diaDaSemana == DateTime.sunday || diaDaSemana == DateTime.monday)
-      return [];
-
-    if (diaDaSemana == DateTime.saturday) {
-      return [
-        TurnoHorarios(
-          titulo: "Manhã",
-          horaInicio: 8,
-          minutoInicio: 30,
-          horaFim: 12,
-          minutoFim: 0,
-        ),
-        TurnoHorarios(
-          titulo: "Tarde",
-          horaInicio: 13,
-          minutoInicio: 30,
-          horaFim: 16,
-          minutoFim: 30,
-        ),
-      ];
-    }
-
-    if (diaDaSemana == DateTime.friday) {
-      return [
-        TurnoHorarios(
-          titulo: "Manhã",
-          horaInicio: 9,
-          minutoInicio: 0,
-          horaFim: 12,
-          minutoFim: 0,
-        ),
-        TurnoHorarios(
-          titulo: "Tarde/Noite",
-          horaInicio: 14,
-          minutoInicio: 0,
-          horaFim: 19,
-          minutoFim: 30,
-        ),
-      ];
-    }
-
-    return [
-      TurnoHorarios(
-        titulo: "Manhã",
-        horaInicio: 9,
-        minutoInicio: 0,
-        horaFim: 12,
-        minutoFim: 0,
-      ),
-      TurnoHorarios(
-        titulo: "Tarde/Noite",
-        horaInicio: 14,
-        minutoInicio: 0,
-        horaFim: 19,
-        minutoFim: 0,
-      ),
-    ];
+    return BusinessHours.shiftsFor(data);
   }
 
   List<String> get todosOsHorariosDoDiaSelecionado {
@@ -192,7 +135,7 @@ class _ModalDataHoraState extends State<ModalDataHora> {
           if (totalDuration == 0) totalDuration = 30;
         }
 
-        int totalBlocks = totalDuration ~/ 15;
+        int totalBlocks = DateFormatters.slotBlocks(totalDuration);
         int startHour = int.parse(startTime.split(':')[0]);
         int startMinute = int.parse(startTime.split(':')[1]);
 
@@ -252,7 +195,7 @@ class _ModalDataHoraState extends State<ModalDataHora> {
     });
     if (durationTotal == 0) durationTotal = 30;
 
-    int requiredBlocks = durationTotal ~/ 15;
+    int requiredBlocks = DateFormatters.slotBlocks(durationTotal);
     int currentIndex = todosHorariosDoTurno.indexOf(time);
 
     for (int i = 0; i < requiredBlocks; i++) {
@@ -688,9 +631,6 @@ class _ModalDataHoraState extends State<ModalDataHora> {
                             }
                           } else {
                             _horarioSelecionado = horaStr;
-                            final String dataFormatada =
-                                "${_currentYear}-${_currentMonth.toString().padLeft(2, '0')}-${_diaSelecionado.toString().padLeft(2, '0')}";
-                            widget.onSelect?.call(dataFormatada, horaStr);
                           }
                         });
                       }

@@ -1,5 +1,6 @@
-import 'package:barbearia_pacheco/features/config/data/supabase_service_repository.dart';
+import 'package:barbearia_pacheco/features/config/data/service_repository.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:barbearia_pacheco/features/config/models/service_model.dart';
 
 class ModalService extends StatefulWidget {
@@ -14,12 +15,11 @@ class ModalService extends StatefulWidget {
 class _ModalServiceState extends State<ModalService> {
   late Future<List<ServiceModel>> _servicesFuture;
   final List<ServiceModel> _servicosSelecionadosTemporarios = [];
-  final repository = SupabaseServiceRepository();
 
   @override
   void initState() {
     super.initState();
-    _servicesFuture = repository.fetchServices();
+    _servicesFuture = context.read<ServiceRepository>().fetchServices();
   }
 
   @override

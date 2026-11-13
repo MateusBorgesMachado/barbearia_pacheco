@@ -58,11 +58,14 @@ class AppointmentModel {
   }
 
   Map<String, dynamic> toJson() {
+    final time = appointmentTime.length == 5
+        ? '$appointmentTime:00'
+        : appointmentTime;
     final data = <String, dynamic>{
       'client_id': clientId,
       'barber_id': barberId,
       'appointment_date': appointmentDate,
-      'appointment_time': appointmentTime,
+      'appointment_time': time,
       'status': status,
     };
     if (id != null) {

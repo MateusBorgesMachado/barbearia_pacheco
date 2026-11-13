@@ -16,7 +16,7 @@ class SupabaseAuthRepository implements AuthRepository {
       final AuthResponse response = await _supabaseClient.auth.signUp(
         email: email,
         password: password,
-        data: {'name': name, 'role': role},
+        data: {'name': name, 'role': 'client'},
       );
 
       final String? userId = response.user?.id;
@@ -24,7 +24,7 @@ class SupabaseAuthRepository implements AuthRepository {
         throw Exception("Falha ao gerar ID do usuário no cadastro.");
       }
 
-      return UserModel(id: userId, name: name, email: email, role: role);
+      return UserModel(id: userId, name: name, email: email, role: 'client');
     } catch (error) {
       throw Exception("Erro no cadastro: $error");
     }
@@ -43,6 +43,26 @@ class SupabaseAuthRepository implements AuthRepository {
     } catch (error) {
       throw Exception("Erro ao atualizar o nome no banco: $error");
     }
+  }
+
+  @override
+  Future<void> updateActiveStatus({
+    required String userId,
+    required bool isActive,
+  }) async {
+    try {
+      await _supabaseClient
+          .from('users')
+          .update({'is_active': isActive})
+          .eq('id', userId);
+    } catch (error) {
+      throw Exception("Erro ao atualizar o status: $error");
+    }
+  }
+
+  @override
+  Future<void> resetPassword(String email) async {
+    await _supabaseClient.auth.resetPasswordForEmail(email.trim());
   }
 
   @override
@@ -82,10 +102,10 @@ class SupabaseAuthRepository implements AuthRepository {
 
   @override
   Future<UserModel?> getCurrentUser() async {
-    try {
-      final User? currentUser = _supabaseClient.auth.currentUser;
-      if (currentUser == null) return null;
+    final User? currentUser = _supabaseClient.auth.currentUser;
+    if (currentUser == null) return null;
 
+    try {
       final Map<String, dynamic> userData = await _supabaseClient
           .from('users')
           .select()
@@ -93,8 +113,8 @@ class SupabaseAuthRepository implements AuthRepository {
           .single();
 
       return UserModel.fromJson(userData);
-    } catch (error) {
-      return null;
+    } catch (_) {
+      throw const AuthProfileException();
     }
   }
 }

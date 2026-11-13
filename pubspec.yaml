@@ -1,7 +1,7 @@
 name: barbearia_pacheco
-description: "A new Flutter project."
+description: "Agendamento de horários e gestão da agenda da Barbearia Sr. Pacheco."
 publish_to: 'none'
-version: 1.1.6+15
+version: 1.1.7+16
 environment:
   sdk: ^3.10.4
 
@@ -12,8 +12,8 @@ dependencies:
   supabase_flutter: ^2.8.0
   flutter_bloc: ^9.0.0
   flutter_local_notifications: ^18.0.0
+  timezone: ^0.10.1
   equatable: ^2.0.8
-  image_picker: ^1.2.3
 
 dev_dependencies:
   flutter_test:

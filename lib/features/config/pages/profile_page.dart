@@ -1,5 +1,7 @@
-import 'package:barbearia_pacheco/features/auth/data/supabase_auth_repository.dart';
+import 'package:barbearia_pacheco/core/utils/error_messages.dart';
+import 'package:barbearia_pacheco/features/auth/data/auth_repository.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../auth/widgets/modal_edit_name.dart';
 import 'package:barbearia_pacheco/features/auth/models/user_model.dart';
@@ -12,7 +14,7 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  final _authRepository = SupabaseAuthRepository();
+  AuthRepository get _authRepository => context.read<AuthRepository>();
 
   UserModel? _currentUser;
   bool _isLoading = true;
@@ -110,7 +112,7 @@ class _ProfilePageState extends State<ProfilePage> {
           Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text("Erro ao excluir conta: $e"),
+              content: Text(userFacingError(e)),
               backgroundColor: Colors.redAccent,
             ),
           );
@@ -176,7 +178,9 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
         elevation: 0,
       ),
-      body: SingleChildScrollView(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator(color: Colors.amber))
+          : SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
         child: Column(
           children: [

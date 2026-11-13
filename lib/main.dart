@@ -1,3 +1,8 @@
+import 'package:barbearia_pacheco/core/config/supabase_config.dart';
+import 'package:barbearia_pacheco/features/appointments/data/appointment_repository.dart';
+import 'package:barbearia_pacheco/features/appointments/data/supabase_appointment_repository.dart';
+import 'package:barbearia_pacheco/features/config/data/service_repository.dart';
+import 'package:barbearia_pacheco/features/config/data/supabase_service_repository.dart';
 import 'package:barbearia_pacheco/features/config/notification_service.dart';
 import 'package:barbearia_pacheco/features/auth/controllers/auth_gate.dart';
 import 'package:barbearia_pacheco/features/auth/controllers/login_cubit.dart';
@@ -18,9 +23,8 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Supabase.initialize(
-    url: 'https://cksavpwkozgguzowhpxc.supabase.co',
-    anonKey:
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNrc2F2cHdrb3pnZ3V6b3docHhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3NDEzNjksImV4cCI6MjA5NTMxNzM2OX0.oNNjYEaf3L5Khg6nCUgpCS6RT_GKM5oxonxlSLdkcJ0',
+    url: SupabaseConfig.url,
+    anonKey: SupabaseConfig.anonKey,
   );
   await NotificationService.init();
 
@@ -32,16 +36,24 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return RepositoryProvider<AuthRepository>(
-      create: (context) => SupabaseAuthRepository(),
-
+    return MultiRepositoryProvider(
+      providers: [
+        RepositoryProvider<AuthRepository>(
+          create: (context) => SupabaseAuthRepository(),
+        ),
+        RepositoryProvider<AppointmentRepository>(
+          create: (context) => SupabaseAppointmentRepository(),
+        ),
+        RepositoryProvider<ServiceRepository>(
+          create: (context) => SupabaseServiceRepository(),
+        ),
+      ],
       child: BlocProvider(
         create: (context) => LoginCubit(context.read<AuthRepository>()),
         child: MaterialApp(
           title: 'Barbearia Pacheco',
           theme: ThemeData.dark(),
           debugShowCheckedModeBanner: false,
-
           initialRoute: '/auth',
           routes: {
             '/login': (context) => const LoginPage(),

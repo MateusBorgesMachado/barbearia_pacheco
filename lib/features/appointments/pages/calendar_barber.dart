@@ -1,9 +1,13 @@
-import 'package:barbearia_pacheco/features/appointments/data/supabase_appointment_repository.dart';
+import 'package:barbearia_pacheco/core/utils/business_hours.dart';
+import 'package:barbearia_pacheco/core/utils/date_formatters.dart';
+import 'package:barbearia_pacheco/core/utils/error_messages.dart';
+import 'package:barbearia_pacheco/features/appointments/data/appointment_repository.dart';
 import 'package:barbearia_pacheco/features/appointments/controllers/appointment_cubit.dart';
 import 'package:barbearia_pacheco/features/appointments/controllers/appointment_state.dart';
 import 'package:barbearia_pacheco/features/config/models/service_model.dart';
 import 'package:barbearia_pacheco/features/appointments/widgets/barber_date_picker.dart';
 import 'package:barbearia_pacheco/features/appointments/widgets/modal_date_time.dart';
+import 'package:barbearia_pacheco/features/appointments/widgets/modal_walk_in_booking.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -86,6 +90,44 @@ class _CalendarBarberState extends State<CalendarBarber> {
     } finally {
       setState(() => _isLoading = false);
     }
+  }
+
+  void _openWalkInModal(BuildContext contextWithCubit) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF141414),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (modalContext) => SafeArea(
+        child: ModalWalkInBooking(
+        barberId: _barberId,
+        onConfirm: ({
+          required String clientName,
+          required List<ServiceModel> services,
+          required String date,
+          required String time,
+        }) {
+          Navigator.pop(modalContext);
+          final serviceIds = services
+              .where((s) => s.id != null && s.id!.isNotEmpty)
+              .map((s) => s.id!)
+              .toList();
+          setState(() {
+            _selectedDate = DateTime.parse(date);
+          });
+          contextWithCubit.read<AppointmentCubit>().createWalkInAppointment(
+            barberId: _barberId,
+            date: date,
+            time: time,
+            serviceIds: serviceIds,
+            clientName: clientName,
+          );
+        },
+        ),
+      ),
+    );
   }
 
   void _openBlockModal(
@@ -185,15 +227,20 @@ class _CalendarBarberState extends State<CalendarBarber> {
     );
 
     try {
-      final repository = SupabaseAppointmentRepository();
+      final repository = context.read<AppointmentRepository>();
+      int blockedCount = 0;
 
       for (String hora in horasStr) {
-        await repository.blockTimeSlot(
-          barberId: _barberId,
-          date: dateStr,
-          time: hora.length == 5 ? "$hora:00" : hora,
-          serviceIds: [],
-        );
+        try {
+          await repository.blockTimeSlot(
+            barberId: _barberId,
+            date: dateStr,
+            time: hora.length == 5 ? "$hora:00" : hora,
+          );
+          blockedCount++;
+        } catch (_) {
+          // Slot already occupied — skip so a full-day block still works.
+        }
       }
 
       if (!mounted) return;
@@ -209,7 +256,7 @@ class _CalendarBarberState extends State<CalendarBarber> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("${horasStr.length} horários bloqueados com sucesso!"),
+          content: Text("$blockedCount horários bloqueados com sucesso!"),
           backgroundColor: Colors.green,
         ),
       );
@@ -217,7 +264,7 @@ class _CalendarBarberState extends State<CalendarBarber> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("Erro ao salvar: $e"),
+          content: Text(userFacingError(e)),
           backgroundColor: Colors.redAccent,
           duration: const Duration(seconds: 8),
         ),
@@ -227,60 +274,7 @@ class _CalendarBarberState extends State<CalendarBarber> {
 
   List<String> _gerarHorariosPorData(String dataStr) {
     try {
-      final DateTime data = DateTime.parse(dataStr);
-      final int diaDaSemana = data.weekday;
-
-      if (diaDaSemana == DateTime.sunday || diaDaSemana == DateTime.monday) {
-        return [];
-      }
-
-      int hIn1 = 9, mIn1 = 0, hFim1 = 12, mFim1 = 0;
-      int hIn2 = 14, mIn2 = 0, hFim2 = 19, mFim2 = 0;
-
-      if (diaDaSemana == DateTime.saturday) {
-        hIn1 = 8;
-        mIn1 = 30;
-        hFim1 = 12;
-        mFim1 = 0;
-        hIn2 = 13;
-        mIn2 = 30;
-        hFim2 = 16;
-        mFim2 = 30;
-      } else if (diaDaSemana == DateTime.friday) {
-        hFim2 = 19;
-        mFim2 = 30;
-      }
-
-      final List<String> horarios = [];
-
-      void adicionarTurno(int horaIn, int minIn, int horaFim, int minFim) {
-        DateTime atual = DateTime(
-          data.year,
-          data.month,
-          data.day,
-          horaIn,
-          minIn,
-        );
-        final DateTime fim = DateTime(
-          data.year,
-          data.month,
-          data.day,
-          horaFim,
-          minFim,
-        );
-
-        while (!atual.isAfter(fim)) {
-          final String formatado =
-              "${atual.hour.toString().padLeft(2, '0')}:${atual.minute.toString().padLeft(2, '0')}";
-          horarios.add(formatado);
-          atual = atual.add(const Duration(minutes: 15));
-        }
-      }
-
-      adicionarTurno(hIn1, mIn1, hFim1, mFim1);
-      adicionarTurno(hIn2, mIn2, hFim2, mFim2);
-
-      return horarios;
+      return BusinessHours.slotsFor(DateTime.parse(dataStr));
     } catch (e) {
       return [];
     }
@@ -363,7 +357,7 @@ class _CalendarBarberState extends State<CalendarBarber> {
   }
 
   String _formatDate(DateTime date) {
-    return "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+    return DateFormatters.ymd(date);
   }
 
   String _formatDisplayDate(DateTime date) {
@@ -377,7 +371,7 @@ class _CalendarBarberState extends State<CalendarBarber> {
 
     return BlocProvider(
       create: (context) =>
-          AppointmentCubit(SupabaseAppointmentRepository())
+          AppointmentCubit(context.read<AppointmentRepository>())
             ..fetchBarberAgenda(barberId: _barberId, date: formattedQueryDate),
       child: Builder(
         builder: (contextInterno) {
@@ -498,6 +492,13 @@ class _CalendarBarberState extends State<CalendarBarber> {
                       backgroundColor: Colors.redAccent,
                     ),
                   );
+                } else if (state is AppointmentCreationSuccess) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text("Horário marcado com sucesso!"),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
                 }
               },
               builder: (context, state) {
@@ -533,11 +534,15 @@ class _CalendarBarberState extends State<CalendarBarber> {
                       final String status = item["status"] ?? "scheduled";
                       final bool isCanceled = status == "canceled";
                       final bool isBlocked = status == "blocked";
+                      final bool isCompleted = status == "completed";
 
                       final clientData = item["users"] as Map<String, dynamic>?;
 
-                      final String clientName =
-                          clientData?["name"] ?? "Cliente Desconhecido";
+                      final String walkInName =
+                          (item["walk_in_name"] as String?)?.trim() ?? "";
+                      final String clientName = walkInName.isNotEmpty
+                          ? walkInName
+                          : clientData?["name"] ?? "Cliente Desconhecido";
                       final appointmentServices =
                           item['appointment_services'] as List<dynamic>? ?? [];
 
@@ -688,6 +693,8 @@ class _CalendarBarberState extends State<CalendarBarber> {
                                   Text(
                                     isCanceled
                                         ? "Cancelado"
+                                        : isCompleted
+                                        ? "Concluído • R\$ ${totalPrice.toStringAsFixed(2)}"
                                         : "Duração: $totalDuration min • R\$ ${totalPrice.toStringAsFixed(2)}",
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
@@ -705,8 +712,27 @@ class _CalendarBarberState extends State<CalendarBarber> {
                               ),
                             ),
                             const SizedBox(width: 8),
-                            if (!isCanceled)
+                            if (!isCanceled && !isCompleted)
                               IconButton(
+                                tooltip: "Concluir",
+                                icon: const Icon(
+                                  Icons.check_circle_outline,
+                                  color: Colors.green,
+                                  size: 22,
+                                ),
+                                onPressed: () {
+                                  context
+                                      .read<AppointmentCubit>()
+                                      .completeAppointment(
+                                        appointmentId: item["id"] as String,
+                                        barberId: _barberId,
+                                        date: formattedQueryDate,
+                                      );
+                                },
+                              ),
+                            if (!isCanceled && !isCompleted)
+                              IconButton(
+                                tooltip: "Cancelar",
                                 icon: const Icon(
                                   Icons.cancel_outlined,
                                   color: Colors.redAccent,
@@ -721,6 +747,12 @@ class _CalendarBarberState extends State<CalendarBarber> {
                                         date: formattedQueryDate,
                                       );
                                 },
+                              ),
+                            if (isCompleted)
+                              const Icon(
+                                Icons.check_circle,
+                                color: Colors.green,
+                                size: 22,
                               ),
                           ],
                         ),
@@ -737,11 +769,26 @@ class _CalendarBarberState extends State<CalendarBarber> {
                 );
               },
             ),
-            floatingActionButton: Row(
+            floatingActionButton: Column(
               mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.end,
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 FloatingActionButton.extended(
+                  heroTag: "walkInBooking",
+                  backgroundColor: Colors.white,
+                  icon: const Icon(Icons.person_add_alt_1, color: Colors.black),
+                  label: const Text(
+                    "Marcar horário",
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  onPressed: () => _openWalkInModal(contextInterno),
+                ),
+                const SizedBox(height: 12),
+                FloatingActionButton.extended(
+                  heroTag: "blockSlot",
                   backgroundColor: Colors.amber,
                   icon: const Icon(
                     Icons.lock_person_outlined,
@@ -749,26 +796,6 @@ class _CalendarBarberState extends State<CalendarBarber> {
                   ),
                   label: const Text(
                     "Bloquear Horário",
-                    style: TextStyle(
-                      color: Colors.black,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  onPressed: () {
-                    _openBlockModal(contextInterno, formattedQueryDate);
-                  },
-                ),
-
-                const SizedBox(width: 16),
-
-                FloatingActionButton.extended(
-                  backgroundColor: Colors.amber,
-                  icon: const Icon(
-                    Icons.lock_person_outlined,
-                    color: Colors.black,
-                  ),
-                  label: const Text(
-                    "Marcar horário",
                     style: TextStyle(
                       color: Colors.black,
                       fontWeight: FontWeight.bold,

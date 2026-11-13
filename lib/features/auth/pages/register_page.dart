@@ -2,7 +2,7 @@ import 'package:barbearia_pacheco/core/widgets/custom_button_login.dart';
 import 'package:barbearia_pacheco/core/widgets/custom_input_login.dart';
 import 'package:barbearia_pacheco/features/auth/controllers/register_cubit.dart';
 import 'package:barbearia_pacheco/features/auth/controllers/register_state.dart';
-import 'package:barbearia_pacheco/features/auth/data/supabase_auth_repository.dart';
+import 'package:barbearia_pacheco/features/auth/data/auth_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -39,7 +39,7 @@ class _CadastroPageState extends State<CadastroPage> {
 
     return Scaffold(
       body: BlocProvider(
-        create: (context) => RegisterCubit(SupabaseAuthRepository()),
+        create: (context) => RegisterCubit(context.read<AuthRepository>()),
         child: BlocConsumer<RegisterCubit, RegisterState>(
           listener: (context, state) {
             if (state is RegisterSuccess) {

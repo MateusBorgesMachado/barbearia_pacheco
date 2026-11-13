@@ -20,11 +20,16 @@ class AppointmentActionLoading extends AppointmentState {
 }
 
 class AppointmentCreationSuccess extends AppointmentState {
-  const AppointmentCreationSuccess();
+  final String appointmentId;
+  const AppointmentCreationSuccess(this.appointmentId);
 }
 
 class AppointmentCancelSuccess extends AppointmentState {
   const AppointmentCancelSuccess();
+}
+
+class AppointmentCompleteSuccess extends AppointmentState {
+  const AppointmentCompleteSuccess();
 }
 
 class AppointmentError extends AppointmentState {
